@@ -1,0 +1,11 @@
+{
+    "name": "zayncaleb/lostandfoundsystem",
+    "autoload": {
+        "psr-4": {
+            "Zayncaleb\\Lostandfoundsystem\\": "src/"
+        }
+    },
+    "require": {
+        "mongodb/mongodb": "^2.3"
+    }
+}

@@ -1,0 +1,2299 @@
+/* =========================================================
+   STUDENT DASHBOARD
+   ========================================================= */
+
+.student-dashboard {
+    min-height: 100vh;
+
+    background:
+        radial-gradient(
+            circle at top left,
+            #eff6ff 0%,
+            #f8fafc 45%,
+            #eef2ff 100%
+        );
+
+    color: #0f172a;
+}
+
+
+/* =========================================================
+   DASHBOARD CONTAINER
+   ========================================================= */
+
+.student-container {
+    width: 90%;
+    max-width: 1100px;
+
+    margin: 40px auto 70px;
+}
+
+
+/* =========================================================
+   DASHBOARD WELCOME
+   ========================================================= */
+
+.student-welcome {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    min-height: 190px;
+
+    padding: 35px 40px;
+
+    margin-bottom: 35px;
+
+    border-radius: 24px;
+
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            135deg,
+            #1e3a8a,
+            #2563eb,
+            #3b82f6
+        );
+
+    color: white;
+
+    box-shadow:
+        0 18px 40px rgba(37, 99, 235, 0.22);
+}
+
+
+.student-welcome::before {
+    content: "";
+
+    position: absolute;
+
+    width: 280px;
+    height: 280px;
+
+    right: -100px;
+    top: -150px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.08);
+}
+
+
+.student-welcome::after {
+    content: "";
+
+    position: absolute;
+
+    width: 150px;
+    height: 150px;
+
+    right: 120px;
+    bottom: -100px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.06);
+}
+
+
+.welcome-content {
+    position: relative;
+
+    z-index: 2;
+}
+
+
+.dashboard-label {
+    display: inline-block;
+
+    margin-bottom: 10px;
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: 2px;
+
+    color: #dbeafe;
+}
+
+
+.student-welcome h1 {
+    margin: 0 0 10px;
+
+    font-size: 34px;
+
+    line-height: 1.2;
+
+    color: white;
+}
+
+
+.student-welcome h1 span {
+    color: #dbeafe;
+}
+
+
+.student-welcome p {
+    margin: 0;
+
+    color: #dbeafe;
+
+    font-size: 15px;
+
+    line-height: 1.6;
+}
+
+
+.student-welcome-icon {
+    position: relative;
+
+    z-index: 3;
+
+    flex-shrink: 0;
+
+    width: 95px;
+    height: 95px;
+
+    margin-left: 30px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 27px;
+
+    background: rgba(255, 255, 255, 0.14);
+
+    border: 1px solid rgba(255, 255, 255, 0.20);
+
+    font-size: 45px;
+
+    box-shadow:
+        0 10px 25px rgba(15, 23, 42, 0.10);
+
+    transform: rotate(3deg);
+}
+
+
+.dashboard-section-title {
+    margin: 30px 0 18px;
+
+    color: #0f172a;
+
+    font-size: 21px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   DASHBOARD ACTION CARDS
+   ========================================================= */
+
+.student-actions {
+    display: grid;
+
+    grid-template-columns: repeat(2, 1fr);
+
+    gap: 20px;
+}
+
+
+.student-action-card {
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 20px;
+
+    padding: 26px;
+
+    background: white;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 8px 25px rgba(15, 23, 42, 0.06);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+.student-action-card:hover {
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 18px 35px rgba(15, 23, 42, 0.10);
+}
+
+
+.action-icon {
+    flex-shrink: 0;
+
+    width: 60px;
+    height: 60px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 17px;
+
+    font-size: 28px;
+}
+
+
+.lost-card .action-icon {
+    background: #dbeafe;
+}
+
+
+.found-card .action-icon {
+    background: #dcfce7;
+}
+
+
+.action-content {
+    flex: 1;
+}
+
+
+.action-content h3 {
+    margin: 0 0 8px;
+
+    color: #0f172a;
+
+    font-size: 18px;
+}
+
+
+.action-content p {
+    margin: 0 0 18px;
+
+    color: #64748b;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+
+.student-action-button {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 8px;
+
+    padding: 10px 15px;
+
+    border-radius: 10px;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+.student-action-button.blue {
+    background: #2563eb;
+
+    box-shadow:
+        0 5px 12px rgba(37, 99, 235, 0.18);
+}
+
+
+.student-action-button.green {
+    background: #16a34a;
+
+    box-shadow:
+        0 5px 12px rgba(22, 163, 74, 0.18);
+}
+
+
+.student-action-button:hover {
+    transform: translateY(-2px);
+}
+
+
+.student-action-button span {
+    font-size: 17px;
+
+    line-height: 1;
+}
+
+
+/* =========================================================
+   DASHBOARD SEARCH
+   ========================================================= */
+
+.search-actions {
+    display: grid;
+
+    grid-template-columns: repeat(2, 1fr);
+
+    gap: 18px;
+}
+
+
+.search-card {
+    display: flex;
+
+    align-items: center;
+
+    gap: 17px;
+
+    padding: 22px;
+
+    background: white;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 18px;
+
+    text-decoration: none;
+
+    box-shadow:
+        0 6px 20px rgba(15, 23, 42, 0.05);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+.search-card:hover {
+    transform: translateY(-4px);
+
+    box-shadow:
+        0 14px 28px rgba(15, 23, 42, 0.09);
+}
+
+
+.search-card-icon {
+    flex-shrink: 0;
+
+    width: 54px;
+    height: 54px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 15px;
+
+    font-size: 24px;
+}
+
+
+.green-icon {
+    background: #dcfce7;
+}
+
+
+.blue-icon {
+    background: #dbeafe;
+}
+
+
+.search-card-content {
+    flex: 1;
+}
+
+
+.search-card h3 {
+    margin: 0 0 5px;
+
+    color: #1e293b;
+
+    font-size: 16px;
+}
+
+
+.search-card p {
+    margin: 0;
+
+    color: #64748b;
+
+    font-size: 13px;
+
+    line-height: 1.5;
+}
+
+
+.search-arrow {
+    flex-shrink: 0;
+
+    color: #94a3b8;
+
+    font-size: 24px;
+
+    transition:
+        transform 0.2s ease,
+        color 0.2s ease;
+}
+
+
+.search-card:hover .search-arrow {
+    color: #2563eb;
+
+    transform: translateX(5px);
+}
+
+
+/* =========================================================
+   DASHBOARD TIP
+   ========================================================= */
+
+.student-tip {
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    margin-top: 30px;
+
+    padding: 19px 22px;
+
+    background: #fffbeb;
+
+    border: 1px solid #fde68a;
+
+    border-radius: 16px;
+}
+
+
+.tip-icon {
+    flex-shrink: 0;
+
+    width: 45px;
+    height: 45px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 13px;
+
+    background: #fef3c7;
+
+    font-size: 21px;
+}
+
+
+.student-tip strong {
+    display: block;
+
+    margin-bottom: 3px;
+
+    color: #92400e;
+
+    font-size: 14px;
+}
+
+
+.student-tip p {
+    margin: 0;
+
+    color: #a16207;
+
+    font-size: 13px;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   REPORT / SEARCH / CLAIM PAGES
+   ========================================================= */
+
+.report-page,
+.search-page,
+.claim-page,
+.reports-page,
+.claims-page {
+    width: 90%;
+    max-width: 1100px;
+    margin: 40px auto 70px;
+}
+
+
+/* =========================================================
+   PAGE HEADERS
+   ========================================================= */
+
+.report-header,
+.search-header {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 35px 40px;
+
+    margin-bottom: 25px;
+
+    border-radius: 24px;
+
+    color: white;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 15px 35px rgba(15, 23, 42, 0.12);
+}
+
+
+.report-header::before,
+.search-header::before {
+    content: "";
+
+    position: absolute;
+
+    width: 280px;
+    height: 280px;
+
+    right: -90px;
+    top: -160px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,0.08);
+}
+
+
+.lost-header,
+.lost-search-header {
+    background:
+        linear-gradient(
+            135deg,
+            #1d4ed8,
+            #2563eb,
+            #3b82f6
+        );
+}
+
+
+.found-header,
+.found-search-header {
+    background:
+        linear-gradient(
+            135deg,
+            #15803d,
+            #16a34a,
+            #22c55e
+        );
+}
+
+
+.report-header > div:first-child,
+.search-header > div:first-child {
+    position: relative;
+    z-index: 2;
+}
+
+
+.report-label {
+    display: inline-block;
+
+    margin-bottom: 9px;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 2px;
+
+    color: rgba(255,255,255,0.78);
+}
+
+
+.report-header h1,
+.search-header h1 {
+    margin: 0 0 10px;
+
+    color: white;
+
+    font-size: 32px;
+}
+
+
+.report-header p,
+.search-header p {
+    margin: 0;
+
+    max-width: 600px;
+
+    color: rgba(255,255,255,0.82);
+
+    line-height: 1.6;
+}
+
+
+.report-header-icon,
+.search-header-icon {
+    position: relative;
+    z-index: 2;
+
+    width: 90px;
+    height: 90px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-left: 30px;
+
+    border-radius: 25px;
+
+    background: rgba(255,255,255,0.15);
+
+    border: 1px solid rgba(255,255,255,0.20);
+
+    font-size: 40px;
+}
+
+
+/* =========================================================
+   FORM CARDS
+   ========================================================= */
+
+.report-card,
+.claim-form-card,
+.search-box {
+    background: white;
+
+    padding: 32px;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 10px 30px rgba(15,23,42,0.07);
+}
+
+
+.form-message {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 14px 16px;
+
+    margin-bottom: 25px;
+
+    border-radius: 12px;
+
+    font-size: 14px;
+
+    font-weight: 600;
+}
+
+
+.form-message.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+
+.form-message.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+
+.form-message span {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   FORMS
+   ========================================================= */
+
+.form-field {
+    margin-bottom: 21px;
+}
+
+
+.form-field label {
+    display: block;
+
+    margin-bottom: 8px;
+
+    color: #334155;
+
+    font-size: 14px;
+
+    font-weight: 700;
+}
+
+
+.optional {
+    margin-left: 5px;
+
+    color: #94a3b8;
+
+    font-size: 11px;
+
+    font-weight: 500;
+}
+
+
+.field-wrapper,
+.textarea-wrapper {
+    position: relative;
+}
+
+
+.field-wrapper > span,
+.textarea-wrapper > span {
+    position: absolute;
+
+    left: 15px;
+    top: 15px;
+
+    z-index: 2;
+
+    font-size: 17px;
+}
+
+
+.field-wrapper input,
+.textarea-wrapper textarea {
+    width: 100%;
+    max-width: none;
+
+    border: 1px solid #dbe3ee;
+
+    border-radius: 12px;
+
+    background: #f8fafc;
+
+    outline: none;
+
+    transition: 0.2s;
+}
+
+
+.field-wrapper input {
+    height: 48px;
+
+    padding:
+        0 15px 0 45px;
+}
+
+
+.textarea-wrapper textarea {
+    min-height: 140px;
+
+    padding:
+        14px 15px 14px 45px;
+
+    resize: vertical;
+
+    font-family: inherit;
+
+    line-height: 1.6;
+}
+
+
+.field-wrapper input:focus,
+.textarea-wrapper textarea:focus {
+    background: white;
+
+    border-color: #3b82f6;
+
+    box-shadow:
+        0 0 0 4px rgba(59,130,246,0.10);
+}
+
+
+.form-row {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 20px;
+}
+
+
+/* =========================================================
+   IMAGE UPLOAD
+   ========================================================= */
+
+.image-upload {
+    min-height: 160px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    padding: 25px;
+
+    border: 2px dashed #bfdbfe;
+
+    border-radius: 16px;
+
+    background: #eff6ff;
+
+    cursor: pointer;
+
+    text-align: center;
+
+    transition: 0.2s;
+}
+
+
+.image-upload:hover {
+    background: #dbeafe;
+
+    border-color: #60a5fa;
+}
+
+
+.image-upload input {
+    display: none;
+}
+
+
+.upload-icon {
+    font-size: 35px;
+}
+
+
+.image-upload strong {
+    color: #1e40af;
+
+    font-size: 15px;
+}
+
+
+.image-upload small {
+    color: #64748b;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.form-actions {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 12px;
+
+    margin-top: 28px;
+}
+
+
+.secondary-button {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 11px 17px;
+
+    border-radius: 11px;
+
+    background: #f1f5f9;
+
+    color: #475569;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    transition: 0.2s;
+}
+
+
+.secondary-button:hover {
+    background: #e2e8f0;
+
+    transform: translateY(-1px);
+}
+
+
+.submit-button {
+    border: none;
+
+    padding: 12px 20px;
+
+    border-radius: 11px;
+
+    color: white;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+
+.lost-submit {
+    background: #2563eb;
+}
+
+
+.found-submit {
+    background: #16a34a;
+}
+
+
+.claim-submit {
+    background: #2563eb;
+}
+
+
+.submit-button:hover {
+    transform: translateY(-2px);
+}
+
+
+/* =========================================================
+   TIP
+   ========================================================= */
+
+.form-tip {
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    margin-top: 20px;
+
+    padding: 18px 20px;
+
+    background: #fffbeb;
+
+    border: 1px solid #fde68a;
+
+    border-radius: 15px;
+}
+
+
+.form-tip > span {
+    font-size: 23px;
+}
+
+
+.form-tip strong {
+    color: #92400e;
+
+    font-size: 14px;
+}
+
+
+.form-tip p {
+    margin: 3px 0 0;
+
+    color: #a16207;
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   SEARCH TABS
+   ========================================================= */
+
+.search-tabs {
+    display: flex;
+
+    gap: 10px;
+
+    margin-bottom: 18px;
+
+    padding: 6px;
+
+    width: fit-content;
+
+    background: #e2e8f0;
+
+    border-radius: 12px;
+}
+
+
+.search-tabs a {
+    padding: 10px 16px;
+
+    border-radius: 9px;
+
+    color: #475569;
+
+    text-decoration: none;
+
+    font-size: 13px;
+
+    font-weight: 700;
+}
+
+
+.search-tabs a.active {
+    background: white;
+
+    color: #2563eb;
+
+    box-shadow:
+        0 2px 7px rgba(15,23,42,0.08);
+}
+
+
+/* =========================================================
+   SEARCH BOX
+   ========================================================= */
+
+.search-box form {
+    display: flex;
+
+    gap: 12px;
+}
+
+
+.big-search-input {
+    position: relative;
+
+    flex: 1;
+}
+
+
+.big-search-input > span {
+    position: absolute;
+
+    left: 15px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    font-size: 18px;
+}
+
+
+.big-search-input input {
+    width: 100%;
+    max-width: none;
+
+    height: 48px;
+
+    padding: 0 45px;
+
+    border: 1px solid #dbe3ee;
+
+    border-radius: 12px;
+
+    background: #f8fafc;
+
+    outline: none;
+}
+
+
+.big-search-input input:focus {
+    background: white;
+
+    border-color: #3b82f6;
+
+    box-shadow:
+        0 0 0 4px rgba(59,130,246,0.10);
+}
+
+
+.big-search-input > a {
+    position: absolute;
+
+    right: 15px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: #94a3b8;
+
+    text-decoration: none;
+}
+
+
+.search-button {
+    padding: 0 24px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    background: #2563eb;
+
+    color: white;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   RESULTS
+   ========================================================= */
+
+.results-heading {
+    margin: 30px 0 17px;
+}
+
+
+.results-heading h2 {
+    margin: 0 0 5px;
+
+    color: #0f172a;
+
+    font-size: 22px;
+}
+
+
+.results-heading p {
+    margin: 0;
+
+    color: #64748b;
+
+    font-size: 13px;
+}
+
+
+.item-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 20px;
+}
+
+
+/* =========================================================
+   ITEM CARDS
+   ========================================================= */
+
+.item-card {
+    overflow: hidden;
+
+    background: white;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 7px 22px rgba(15,23,42,0.06);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+.item-card:hover {
+    transform: translateY(-4px);
+
+    box-shadow:
+        0 15px 30px rgba(15,23,42,0.10);
+}
+
+
+.item-image,
+.my-report-image,
+.my-claim-image {
+    position: relative;
+
+    height: 220px;
+
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eff6ff,
+            #f8fafc
+        );
+}
+
+
+.item-image img,
+.my-report-image img,
+.my-claim-image img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+
+    display: block;
+}
+
+
+.no-item-image {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    color: #94a3b8;
+
+    font-size: 45px;
+}
+
+
+.no-item-image span {
+    font-size: 12px;
+}
+
+
+.item-type-badge {
+    position: absolute;
+
+    top: 13px;
+    left: 13px;
+
+    padding: 6px 9px;
+
+    border-radius: 8px;
+
+    background: rgba(15,23,42,0.78);
+
+    color: white;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    letter-spacing: 1px;
+}
+
+
+.item-card-content {
+    padding: 21px;
+}
+
+
+.item-card-title-row,
+.my-report-title-row,
+.my-claim-title-row {
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 12px;
+}
+
+
+.item-card h3,
+.my-report-card h2,
+.my-claim-card h2 {
+    margin: 0;
+
+    color: #0f172a;
+
+    font-size: 18px;
+}
+
+
+.item-description,
+.my-report-description,
+.my-claim-description {
+    margin: 12px 0 17px;
+
+    color: #64748b;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.status {
+    flex-shrink: 0;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    padding: 5px 9px;
+
+    border-radius: 20px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    text-transform: uppercase;
+}
+
+
+.status.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+
+.status.approved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+
+.status.rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+
+.item-details,
+.report-info-list {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 9px;
+
+    margin-bottom: 17px;
+}
+
+
+.item-details div,
+.report-info-list div {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    color: #64748b;
+
+    font-size: 12px;
+}
+
+
+.item-details span,
+.report-info-list span {
+    color: #475569;
+}
+
+
+/* =========================================================
+   CLAIM BUTTON
+   ========================================================= */
+
+.claim-button {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 11px 14px;
+
+    border-radius: 10px;
+
+    background: #2563eb;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    transition: 0.2s;
+}
+
+
+.claim-button:hover {
+    background: #1d4ed8;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   EMPTY RESULTS
+   ========================================================= */
+
+.empty-results {
+    grid-column: 1 / -1;
+
+    padding: 60px 25px;
+
+    text-align: center;
+
+    background: white;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 7px 20px rgba(15,23,42,0.05);
+}
+
+
+.empty-icon {
+    width: 75px;
+    height: 75px;
+
+    margin: 0 auto 18px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 22px;
+
+    background: #eff6ff;
+
+    font-size: 35px;
+}
+
+
+.empty-results h2 {
+    margin: 0 0 8px;
+
+    color: #0f172a;
+}
+
+
+.empty-results p {
+    max-width: 450px;
+
+    margin: 0 auto 20px;
+
+    color: #64748b;
+
+    line-height: 1.6;
+}
+
+
+.empty-actions {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+}
+
+
+/* =========================================================
+   PAGE TITLE
+   ========================================================= */
+
+.page-title-card {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 30px 35px;
+
+    margin-bottom: 25px;
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #1e3a8a,
+            #2563eb,
+            #3b82f6
+        );
+
+    color: white;
+
+    box-shadow:
+        0 14px 30px rgba(37,99,235,0.18);
+}
+
+
+.page-title-card h1 {
+    margin: 0 0 7px;
+
+    color: white;
+
+    font-size: 30px;
+}
+
+
+.page-title-card p {
+    margin: 0;
+
+    color: #dbeafe;
+
+    font-size: 14px;
+}
+
+
+.page-title-icon {
+    width: 75px;
+    height: 75px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 20px;
+
+    background: rgba(255,255,255,0.15);
+
+    font-size: 33px;
+}
+
+
+/* =========================================================
+   REPORTS
+   ========================================================= */
+
+.reports-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 20px;
+}
+
+
+.my-report-card,
+.my-claim-card {
+    overflow: hidden;
+
+    background: white;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 7px 22px rgba(15,23,42,0.06);
+}
+
+
+.my-report-content,
+.my-claim-content {
+    padding: 21px;
+}
+
+
+.activity-notice {
+    padding: 10px 12px;
+
+    border-radius: 10px;
+
+    font-size: 12px;
+
+    font-weight: 700;
+}
+
+
+.activity-notice.pending {
+    background: #fffbeb;
+    color: #92400e;
+}
+
+
+.activity-notice.approved {
+    background: #ecfdf5;
+    color: #166534;
+}
+
+
+.activity-notice.rejected {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+
+/* =========================================================
+   CLAIM PAGE
+   ========================================================= */
+
+.claim-card {
+    display: grid;
+
+    grid-template-columns:
+        minmax(300px, 0.9fr)
+        minmax(300px, 1.1fr);
+
+    overflow: hidden;
+
+    margin-bottom: 22px;
+
+    background: white;
+
+    border: 1px solid #e2e8f0;
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 10px 30px rgba(15,23,42,0.07);
+}
+
+
+.claim-item-image {
+    min-height: 350px;
+
+    background: #eff6ff;
+}
+
+
+.claim-item-image img {
+    width: 100%;
+    height: 100%;
+
+    min-height: 350px;
+
+    display: block;
+
+    object-fit: cover;
+}
+
+
+.claim-no-image {
+    width: 100%;
+    height: 100%;
+    min-height: 350px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 80px;
+}
+
+
+.claim-item-info {
+    padding: 35px;
+}
+
+
+.claim-item-info .report-label {
+    color: #2563eb;
+}
+
+
+.claim-item-info h1 {
+    margin: 7px 0 15px;
+
+    color: #0f172a;
+
+    font-size: 30px;
+}
+
+
+.claim-description {
+    color: #64748b;
+
+    line-height: 1.7;
+}
+
+
+.claim-details {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 15px;
+
+    margin-top: 25px;
+}
+
+
+.claim-details > div {
+    padding: 15px;
+
+    background: #f8fafc;
+
+    border-radius: 13px;
+}
+
+
+.claim-details span {
+    display: block;
+
+    margin-bottom: 6px;
+
+    font-size: 20px;
+}
+
+
+.claim-details strong {
+    color: #334155;
+
+    font-size: 12px;
+}
+
+
+.claim-details p {
+    margin: 4px 0 0;
+
+    color: #64748b;
+
+    font-size: 13px;
+}
+
+
+.claim-form-header {
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    margin-bottom: 25px;
+}
+
+
+.claim-form-icon {
+    width: 55px;
+    height: 55px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 15px;
+
+    background: #dbeafe;
+
+    font-size: 25px;
+}
+
+
+.claim-form-header h2 {
+    margin: 0 0 4px;
+
+    color: #0f172a;
+}
+
+
+.claim-form-header p {
+    margin: 0;
+
+    color: #64748b;
+
+    font-size: 13px;
+}
+
+
+.claim-warning {
+    display: flex;
+
+    gap: 12px;
+
+    padding: 15px;
+
+    margin-top: 10px;
+
+    border-radius: 12px;
+
+    background: #fffbeb;
+
+    border: 1px solid #fde68a;
+}
+
+
+.claim-warning > span {
+    font-size: 20px;
+}
+
+
+.claim-warning p {
+    margin: 0;
+
+    color: #92400e;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   CLAIM NOTIFICATIONS
+   ========================================================= */
+
+.claim-notification {
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 14px;
+
+    padding: 18px;
+
+    margin-bottom: 15px;
+
+    border-radius: 16px;
+}
+
+
+.claim-notification.approved {
+    background: #ecfdf5;
+
+    border: 1px solid #bbf7d0;
+
+    color: #166534;
+}
+
+
+.claim-notification.rejected {
+    background: #fef2f2;
+
+    border: 1px solid #fecaca;
+
+    color: #991b1b;
+}
+
+
+.notification-icon {
+    width: 42px;
+    height: 42px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background: rgba(255,255,255,0.7);
+
+    font-size: 20px;
+
+    font-weight: 900;
+}
+
+
+.claim-notification strong {
+    display: block;
+
+    margin-bottom: 3px;
+
+    font-size: 15px;
+}
+
+
+.claim-notification p {
+    margin: 0;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+}
+
+
+.my-claim-card {
+    display: grid;
+
+    grid-template-columns:
+        280px
+        1fr;
+
+    margin-bottom: 20px;
+}
+
+
+.my-claim-image {
+    height: 100%;
+    min-height: 280px;
+}
+
+
+.claim-type-label {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: #16a34a;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.5px;
+}
+
+
+.claim-reason {
+    margin: 18px 0;
+
+    padding: 15px;
+
+    background: #f8fafc;
+
+    border-radius: 12px;
+}
+
+
+.claim-reason strong {
+    color: #334155;
+
+    font-size: 12px;
+}
+
+
+.claim-reason p {
+    margin: 6px 0 0;
+
+    color: #64748b;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 850px) {
+
+    .student-actions,
+    .search-actions,
+    .item-grid,
+    .reports-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .student-welcome {
+        padding: 30px;
+    }
+
+
+    .student-welcome h1 {
+        font-size: 29px;
+    }
+
+
+    .claim-card {
+        grid-template-columns: 1fr;
+    }
+
+
+    .claim-item-image,
+    .claim-item-image img {
+        min-height: 280px;
+        height: 280px;
+    }
+
+
+    .my-claim-card {
+        grid-template-columns: 1fr;
+    }
+
+
+    .my-claim-image {
+        height: 230px;
+        min-height: 230px;
+    }
+
+}
+
+
+@media (max-width: 600px) {
+
+    .student-container,
+    .report-page,
+    .search-page,
+    .claim-page,
+    .reports-page,
+    .claims-page {
+        width: 94%;
+
+        margin:
+            25px auto
+            50px;
+    }
+
+
+    .student-welcome {
+        min-height: auto;
+
+        padding: 25px;
+
+        align-items: flex-start;
+    }
+
+
+    .student-welcome h1 {
+        font-size: 24px;
+    }
+
+
+    .student-welcome p {
+        font-size: 13px;
+    }
+
+
+    .student-welcome-icon {
+        width: 65px;
+        height: 65px;
+
+        margin-left: 15px;
+
+        border-radius: 18px;
+
+        font-size: 29px;
+    }
+
+
+    .dashboard-section-title {
+        font-size: 19px;
+    }
+
+
+    .student-action-card {
+        padding: 20px;
+
+        gap: 15px;
+    }
+
+
+    .action-icon {
+        width: 50px;
+        height: 50px;
+
+        border-radius: 14px;
+
+        font-size: 23px;
+    }
+
+
+    .action-content h3 {
+        font-size: 17px;
+    }
+
+
+    .action-content p {
+        font-size: 13px;
+    }
+
+
+    .student-action-button {
+        width: 100%;
+    }
+
+
+    .student-tip {
+        align-items: flex-start;
+
+        padding: 17px;
+    }
+
+
+    .report-header,
+    .search-header {
+        padding: 25px;
+
+        align-items: flex-start;
+    }
+
+
+    .report-header h1,
+    .search-header h1 {
+        font-size: 24px;
+    }
+
+
+    .report-header p,
+    .search-header p {
+        font-size: 13px;
+    }
+
+
+    .report-header-icon,
+    .search-header-icon {
+        width: 60px;
+        height: 60px;
+
+        margin-left: 15px;
+
+        border-radius: 17px;
+
+        font-size: 27px;
+    }
+
+
+    .report-card,
+    .claim-form-card,
+    .search-box {
+        padding: 20px;
+    }
+
+
+    .form-row {
+        grid-template-columns: 1fr;
+
+        gap: 0;
+    }
+
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+
+    .secondary-button,
+    .submit-button {
+        width: 100%;
+    }
+
+
+    .search-tabs {
+        width: 100%;
+    }
+
+
+    .search-tabs a {
+        flex: 1;
+
+        text-align: center;
+
+        padding:
+            10px 8px;
+    }
+
+
+    .search-box form {
+        flex-direction: column;
+    }
+
+
+    .search-button {
+        height: 48px;
+    }
+
+
+    .item-image {
+        height: 210px;
+    }
+
+
+    .item-card-title-row,
+    .my-report-title-row,
+    .my-claim-title-row {
+        flex-direction: column;
+    }
+
+
+    .status {
+        align-self: flex-start;
+    }
+
+
+    .page-title-card {
+        padding: 25px;
+    }
+
+
+    .page-title-card h1 {
+        font-size: 25px;
+    }
+
+
+    .page-title-icon {
+        width: 60px;
+        height: 60px;
+
+        font-size: 27px;
+    }
+
+
+    .claim-item-info {
+        padding: 25px;
+    }
+
+
+    .claim-item-info h1 {
+        font-size: 25px;
+    }
+
+
+    .claim-details {
+        grid-template-columns: 1fr;
+    }
+
+
+    .empty-actions {
+        flex-direction: column;
+
+        align-items: stretch;
+    }
+
+}

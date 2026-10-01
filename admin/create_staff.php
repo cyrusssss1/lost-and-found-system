@@ -10,97 +10,15 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "admin") {
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Zayncaleb\Lostandfoundsystem\Database;
+use Cloudinary\Configuration\Configuration;
+use Cloudinary\Api\Upload\UploadApi;
+
+$db = new Database();
+
+$users = $db->getDatabase()->users;
 
 $message = "";
 $messageType = "";
-
-
-/* =========================================================
-   CLOUDINARY UPLOAD FUNCTION
-   ========================================================= */
-
-function uploadStaffProfileToCloudinary($file)
-{
-    if (!isset($file) || $file["error"] !== UPLOAD_ERR_OK) {
-        return "";
-    }
-
-    $cloudName = getenv("CLOUDINARY_CLOUD_NAME");
-    $apiKey = getenv("CLOUDINARY_API_KEY");
-    $apiSecret = getenv("CLOUDINARY_API_SECRET");
-
-    if (!$cloudName || !$apiKey || !$apiSecret) {
-        return false;
-    }
-
-    $timestamp = time();
-
-    $folder = "lost_and_found/staff";
-
-    /*
-     * Cloudinary signature
-     */
-    $signatureString =
-        "folder=" . $folder .
-        "&timestamp=" . $timestamp .
-        $apiSecret;
-
-    $signature = sha1($signatureString);
-
-    $uploadUrl =
-        "https://api.cloudinary.com/v1_1/" .
-        rawurlencode($cloudName) .
-        "/image/upload";
-
-
-    $curlFile = new CURLFile(
-        $file["tmp_name"],
-        $file["type"],
-        $file["name"]
-    );
-
-
-    $postFields = [
-        "file" => $curlFile,
-        "api_key" => $apiKey,
-        "timestamp" => $timestamp,
-        "signature" => $signature,
-        "folder" => $folder
-    ];
-
-
-    $ch = curl_init($uploadUrl);
-
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-
-    $response = curl_exec($ch);
-
-    $curlError = curl_error($ch);
-
-    curl_close($ch);
-
-
-    if ($response === false || $curlError !== "") {
-        return false;
-    }
-
-
-    $result = json_decode($response, true);
-
-
-    if (
-        isset($result["secure_url"]) &&
-        $result["secure_url"] !== ""
-    ) {
-        return $result["secure_url"];
-    }
-
-
-    return false;
-}
 
 
 /* =========================================================
@@ -114,14 +32,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $password = $_POST["password"] ?? "";
     $confirmPassword = $_POST["confirm_password"] ?? "";
 
-
-    /* -------------------------
-       BASIC VALIDATION
-       ------------------------- */
-
     if ($name === "" || $email === "" || $password === "") {
 
-        $message = "Please complete all required fields.";
+        $message = "Name, email and password are required.";
+        $messageType = "error";
+
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
+        $message = "Please enter a valid email address.";
         $messageType = "error";
 
     } elseif ($password !== $confirmPassword) {
@@ -129,21 +47,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $message = "Passwords do not match.";
         $messageType = "error";
 
+    } elseif (strlen($password) < 6) {
+
+        $message = "Password must be at least 6 characters.";
+        $messageType = "error";
+
     } else {
-
-        $db = new Database();
-
-        $users = $db->getDatabase()->users;
-
-
-        /* -------------------------
-           CHECK EMAIL
-           ------------------------- */
 
         $existingUser = $users->findOne([
             "email" => $email
         ]);
-
 
         if ($existingUser) {
 
@@ -155,9 +68,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $profileImage = "";
 
 
-            /* -------------------------
-               PROFILE IMAGE
-               ------------------------- */
+            /* =================================================
+               PROFILE PICTURE → CLOUDINARY
+               ================================================= */
 
             if (
                 isset($_FILES["profile_picture"]) &&
@@ -166,11 +79,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $file = $_FILES["profile_picture"];
 
-
                 if ($file["error"] !== UPLOAD_ERR_OK) {
 
                     $message =
-                        "There was a problem uploading the profile picture.";
+                        "Unable to upload the profile picture. Upload error code: "
+                        . $file["error"];
 
                     $messageType = "error";
 
@@ -183,17 +96,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 } else {
 
-                    /*
-                     * Check the real MIME type instead of trusting
-                     * the browser-provided file type.
-                     */
-
-                    $finfo = new finfo(FILEINFO_MIME_TYPE);
-
-                    $realMime =
-                        $finfo->file($file["tmp_name"]);
-
-
                     $allowedTypes = [
                         "image/jpeg",
                         "image/png",
@@ -201,8 +103,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         "image/gif"
                     ];
 
+                    $mimeType = mime_content_type(
+                        $file["tmp_name"]
+                    );
 
-                    if (!in_array($realMime, $allowedTypes, true)) {
+                    if (!in_array($mimeType, $allowedTypes, true)) {
 
                         $message =
                             "Please upload a JPG, PNG, WEBP, or GIF image.";
@@ -211,82 +116,141 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     } else {
 
-                        /*
-                         * Upload directly to Cloudinary.
-                         */
+                        try {
 
-                        $profileImage =
-                            uploadStaffProfileToCloudinary($file);
+                            /* =========================================
+                               CLOUDINARY CONFIGURATION
+
+                               Environment variables are used first.
+                               Local fallback values are used if XAMPP
+                               does not load the environment variables.
+                               ========================================= */
+
+                            $cloudName =
+                                getenv("CLOUDINARY_CLOUD_NAME")
+                                ?: "di5zie7e";
+
+                            $apiKey =
+                                getenv("CLOUDINARY_API_KEY")
+                                ?: "789654872826227";
+
+                            $apiSecret =
+                                getenv("CLOUDINARY_API_SECRET")
+                                ?: "iKlrC1ZfIuussv5oLXPyBpiFhZ4";
 
 
-                        if ($profileImage === false) {
+                            if (
+                                $cloudName === "YOUR_CLOUD_NAME" ||
+                                $apiKey === "YOUR_API_KEY" ||
+                                $apiSecret === "YOUR_API_SECRET"
+                            ) {
+
+                                throw new Exception(
+                                    "Cloudinary is not configured. Please enter your Cloudinary Cloud Name, API Key, and API Secret in create_staff.php."
+                                );
+                            }
+
+
+                            Configuration::instance([
+                                "cloud" => [
+                                    "cloud_name" => $cloudName,
+                                    "api_key" => $apiKey,
+                                    "api_secret" => $apiSecret
+                                ],
+                                "url" => [
+                                    "secure" => true
+                                ]
+                            ]);
+
+
+                            $uploadApi = new UploadApi();
+
+
+                            $uploadResult = $uploadApi->upload(
+                                $file["tmp_name"],
+                                [
+                                    "folder" => "lost_and_found/staff"
+                                ]
+                            );
+
+
+                            $profileImage =
+                                $uploadResult["secure_url"] ?? "";
+
+
+                            if ($profileImage === "") {
+
+                                throw new Exception(
+                                    "Cloudinary did not return an image URL."
+                                );
+                            }
+
+                        } catch (Exception $e) {
 
                             $message =
-                                "Unable to upload the profile picture to Cloudinary. Please check your Cloudinary settings.";
+                                "Image upload failed: "
+                                . $e->getMessage();
 
                             $messageType = "error";
-
                         }
-
                     }
-
                 }
-
             }
 
 
-            /* -------------------------
-               CREATE ACCOUNT
-               ------------------------- */
+            /* =================================================
+               SAVE STAFF
+               ================================================= */
 
             if ($message === "") {
 
-                $users->insertOne([
+                try {
 
-                    "name" =>
-                        $name,
+                    $users->insertOne([
 
-                    "email" =>
-                        $email,
+                        "name" => $name,
 
-                    "password" =>
-                        password_hash(
-                            $password,
-                            PASSWORD_DEFAULT
-                        ),
+                        "email" => $email,
 
-                    "role" =>
-                        "staff",
+                        "password" =>
+                            password_hash(
+                                $password,
+                                PASSWORD_DEFAULT
+                            ),
 
-                    /*
-                     * This is now a full Cloudinary URL.
-                     */
-                    "profile_picture" =>
-                        $profileImage,
+                        "role" => "staff",
 
-                    "created_at" =>
-                        new MongoDB\BSON\UTCDateTime()
+                        "profile_picture" => $profileImage,
 
-                ]);
+                        "created_at" =>
+                            new MongoDB\BSON\UTCDateTime()
+
+                    ]);
 
 
-                $message =
-                    "Staff account created successfully!";
+                    $message =
+                        "Staff account created successfully.";
 
-                $messageType = "success";
+                    $messageType = "success";
 
+                    $_POST = [];
+
+                } catch (Exception $e) {
+
+                    $message =
+                        "Unable to create staff account: "
+                        . $e->getMessage();
+
+                    $messageType = "error";
+                }
             }
-
         }
-
     }
-
 }
 
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -313,11 +277,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 body {
     margin: 0;
-    font-family:
-        "Segoe UI",
-        Arial,
-        sans-serif;
-
+    font-family: "Segoe UI", Arial, sans-serif;
     background:
         radial-gradient(
             circle at top right,
@@ -325,7 +285,6 @@ body {
             transparent 30%
         ),
         #f5f3f8;
-
     color: #281b36;
 }
 
@@ -337,14 +296,11 @@ body {
             #5b2181,
             #7c3aed
         );
-
     color: white;
     padding: 20px 35px;
-
     display: flex;
     justify-content: space-between;
     align-items: center;
-
     box-shadow:
         0 8px 25px
         rgba(40,20,60,.2);
@@ -360,15 +316,10 @@ body {
     width: 46px;
     height: 46px;
     border-radius: 14px;
-
-    background:
-        rgba(255,255,255,.15);
-
+    background: rgba(255,255,255,.15);
     display: flex;
     align-items: center;
     justify-content: center;
-
-    font-size: 20px;
 }
 
 .brand h1 {
@@ -390,9 +341,7 @@ body {
 
 .nav {
     background: white;
-    border-bottom:
-        1px solid #e9e2f2;
-
+    border-bottom: 1px solid #e9e2f2;
     padding: 0 35px;
     display: flex;
     overflow-x: auto;
@@ -409,8 +358,7 @@ body {
 .nav a:hover,
 .nav a.active {
     color: #7c3aed;
-    border-bottom:
-        3px solid #7c3aed;
+    border-bottom: 3px solid #7c3aed;
 }
 
 .container {
@@ -424,7 +372,7 @@ body {
 }
 
 .page-title h2 {
-    margin: 0 0 6px;
+    margin: 0 0 7px;
     font-size: 30px;
 }
 
@@ -435,139 +383,12 @@ body {
 
 .card {
     background: white;
-
-    border:
-        1px solid #eee8f5;
-
+    border: 1px solid #eee8f5;
     border-radius: 24px;
-
     padding: 30px;
-
     box-shadow:
         0 12px 35px
         rgba(40,20,60,.07);
-}
-
-.profile-preview {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    margin-bottom: 28px;
-}
-
-.preview {
-    width: 90px;
-    height: 90px;
-
-    border-radius: 50%;
-
-    object-fit: cover;
-
-    background: #eee8f5;
-
-    border:
-        4px solid #ede9fe;
-
-    display: none;
-}
-
-.preview-placeholder {
-    width: 90px;
-    height: 90px;
-
-    border-radius: 50%;
-
-    background:
-        linear-gradient(
-            135deg,
-            #ede9fe,
-            #ddd6fe
-        );
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    color: #7c3aed;
-
-    font-size: 32px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-
-    font-size: 13px;
-    font-weight: 700;
-
-    margin-bottom: 8px;
-
-    color: #51465d;
-}
-
-input {
-    width: 100%;
-
-    padding: 13px 15px;
-
-    border:
-        1px solid #ddd6e5;
-
-    border-radius: 12px;
-
-    outline: none;
-
-    font-size: 14px;
-
-    background: #fcfbfd;
-}
-
-input:focus {
-    border-color: #7c3aed;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(124,58,237,.10);
-}
-
-input[type="file"] {
-    padding: 10px;
-}
-
-.create-btn {
-    width: 100%;
-
-    border: 0;
-
-    padding: 14px;
-
-    border-radius: 13px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #6d28a8,
-            #7c3aed
-        );
-
-    color: white;
-
-    font-size: 14px;
-    font-weight: 800;
-
-    cursor: pointer;
-
-    box-shadow:
-        0 8px 20px
-        rgba(124,58,237,.22);
-}
-
-.create-btn:hover {
-    transform: translateY(-1px);
 }
 
 .message {
@@ -587,15 +408,78 @@ input[type="file"] {
     color: #991b1b;
 }
 
-.back {
-    display: inline-block;
+.form-group {
+    margin-bottom: 20px;
+}
 
-    margin-top: 20px;
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #51465d;
+}
 
-    color: #7c3aed;
+input {
+    width: 100%;
+    padding: 13px 15px;
+    border: 1px solid #ddd6e5;
+    border-radius: 12px;
+    background: #fcfbfd;
+    font-size: 14px;
+    outline: none;
+}
 
+input:focus {
+    border-color: #7c3aed;
+    box-shadow:
+        0 0 0 3px
+        rgba(124,58,237,.10);
+}
+
+input[type="file"] {
+    padding: 10px;
+}
+
+.info {
+    margin-top: -5px;
+    margin-bottom: 20px;
+    color: #81758c;
+    font-size: 12px;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.create-submit {
+    flex: 1;
+    border: 0;
+    padding: 14px;
+    border-radius: 13px;
+    background:
+        linear-gradient(
+            135deg,
+            #6d28a8,
+            #7c3aed
+        );
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow:
+        0 8px 20px
+        rgba(124,58,237,.22);
+}
+
+.cancel-btn {
+    padding: 14px 20px;
+    border-radius: 13px;
+    background: #f3edf8;
+    color: #5b4b68;
     text-decoration: none;
-
     font-weight: 700;
 }
 
@@ -617,6 +501,14 @@ input[type="file"] {
         padding: 22px;
     }
 
+    .actions {
+        flex-direction: column;
+    }
+
+    .cancel-btn {
+        text-align: center;
+    }
+
 }
 
 </style>
@@ -635,12 +527,10 @@ input[type="file"] {
 
         <div>
 
-            <h1>
-                Admin Control Center
-            </h1>
+            <h1>Admin Control Center</h1>
 
             <small>
-                STAFF MANAGEMENT
+                CREATE STAFF
             </small>
 
         </div>
@@ -648,16 +538,13 @@ input[type="file"] {
     </div>
 
     <a
-        class="logout"
         href="../logout.php"
+        class="logout"
     >
-
         <i class="fa-solid fa-right-from-bracket"></i>
-
     </a>
 
 </header>
-
 
 <nav class="nav">
 
@@ -682,8 +569,8 @@ input[type="file"] {
     </a>
 
     <a
-        class="active"
         href="create_staff.php"
+        class="active"
     >
         <i class="fa-solid fa-user-plus"></i>
         Create Staff
@@ -691,94 +578,42 @@ input[type="file"] {
 
 </nav>
 
-
 <main class="container">
 
     <div class="page-title">
 
-        <h2>
-            Create Staff Account
-        </h2>
+        <h2>Create Staff Account</h2>
 
         <p>
-            Add a new staff member to the Lost & Found system.
+            Create a new staff account for the Lost and Found System.
         </p>
 
     </div>
 
-
     <?php if ($message !== ""): ?>
 
-        <div
-            class="message
-            <?php
-            echo $messageType === "success"
-                ? "success"
-                : "error";
-            ?>"
-        >
+        <div class="message <?php echo htmlspecialchars($messageType); ?>">
 
             <i class="fa-solid
-            <?php
-            echo $messageType === "success"
-                ? "fa-circle-check"
-                : "fa-circle-exclamation";
-            ?>"></i>
+                <?php
+                echo $messageType === "success"
+                    ? "fa-circle-check"
+                    : "fa-circle-exclamation";
+                ?>">
+            </i>
 
-            <?php
-            echo htmlspecialchars($message);
-            ?>
+            <?php echo htmlspecialchars($message); ?>
 
         </div>
 
     <?php endif; ?>
 
-
     <div class="card">
 
         <form
             method="POST"
-            action="create_staff.php"
             enctype="multipart/form-data"
         >
-
-            <div class="profile-preview">
-
-                <div
-                    class="preview-placeholder"
-                    id="placeholder"
-                >
-
-                    <i class="fa-solid fa-user"></i>
-
-                </div>
-
-                <img
-                    id="preview"
-                    class="preview"
-                    alt="Profile preview"
-                >
-
-                <div>
-
-                    <strong>
-                        Staff Profile Picture
-                    </strong>
-
-                    <p
-                        style="
-                        color:#81758c;
-                        margin:5px 0;
-                        font-size:12px;
-                        "
-                    >
-                        JPG, PNG, WEBP or GIF • Maximum 5MB
-                    </p>
-
-                </div>
-
-            </div>
-
 
             <div class="form-group">
 
@@ -789,12 +624,15 @@ input[type="file"] {
                 <input
                     type="text"
                     name="name"
-                    placeholder="Enter staff name"
+                    value="<?php
+                        echo htmlspecialchars(
+                            $_POST["name"] ?? ""
+                        );
+                    ?>"
                     required
                 >
 
             </div>
-
 
             <div class="form-group">
 
@@ -805,12 +643,15 @@ input[type="file"] {
                 <input
                     type="email"
                     name="email"
-                    placeholder="staff@example.com"
+                    value="<?php
+                        echo htmlspecialchars(
+                            $_POST["email"] ?? ""
+                        );
+                    ?>"
                     required
                 >
 
             </div>
-
 
             <div class="form-group">
 
@@ -826,6 +667,14 @@ input[type="file"] {
 
             </div>
 
+            <div class="info">
+
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                Profile pictures are securely uploaded to Cloudinary.
+                Maximum size: 5MB.
+
+            </div>
 
             <div class="form-group">
 
@@ -836,12 +685,10 @@ input[type="file"] {
                 <input
                     type="password"
                     name="password"
-                    placeholder="Create password"
                     required
                 >
 
             </div>
-
 
             <div class="form-group">
 
@@ -852,97 +699,36 @@ input[type="file"] {
                 <input
                     type="password"
                     name="confirm_password"
-                    placeholder="Confirm password"
                     required
                 >
 
             </div>
 
+            <div class="actions">
 
-            <button
-                type="submit"
-                class="create-btn"
-            >
+                <a
+                    href="manage_staff.php"
+                    class="cancel-btn"
+                >
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Cancel
+                </a>
 
-                <i class="fa-solid fa-user-plus"></i>
+                <button
+                    type="submit"
+                    class="create-submit"
+                >
+                    <i class="fa-solid fa-user-plus"></i>
+                    Create Staff
+                </button>
 
-                Create Staff Account
-
-            </button>
+            </div>
 
         </form>
 
     </div>
 
-
-    <a
-        href="manage_staff.php"
-        class="back"
-    >
-
-        <i class="fa-solid fa-arrow-left"></i>
-
-        Back to Manage Staff
-
-    </a>
-
 </main>
 
-
-<script>
-
-const fileInput =
-    document.querySelector(
-        'input[name="profile_picture"]'
-    );
-
-const preview =
-    document.getElementById("preview");
-
-const placeholder =
-    document.getElementById("placeholder");
-
-
-fileInput.addEventListener(
-    "change",
-    function() {
-
-        const file =
-            this.files[0];
-
-        if (!file) {
-
-            preview.style.display = "none";
-
-            placeholder.style.display = "flex";
-
-            return;
-        }
-
-        const reader =
-            new FileReader();
-
-        reader.onload =
-            function(e) {
-
-                preview.src =
-                    e.target.result;
-
-                preview.style.display =
-                    "block";
-
-                placeholder.style.display =
-                    "none";
-
-            };
-
-        reader.readAsDataURL(file);
-
-    }
-);
-
-</script>
-
 </body>
-
 </html>

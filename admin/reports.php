@@ -12,7 +12,25 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Zayncaleb\Lostandfoundsystem\Database;
 
 $db = new Database();
+
 $reports = $db->getDatabase()->reports;
+
+
+function getAdminImageUrl($imagePath): string
+{
+    if (empty($imagePath)) {
+        return "";
+    }
+
+    $imagePath = trim((string)$imagePath);
+
+    if (preg_match('/^https?:\/\//i', $imagePath)) {
+        return $imagePath;
+    }
+
+    return "../" . ltrim($imagePath, "/\\");
+}
+
 
 $filter = $_GET["status"] ?? "all";
 
@@ -22,6 +40,7 @@ if (in_array($filter, ["pending", "approved", "rejected"])) {
     $query["status"] = $filter;
 }
 
+
 $allReports = $reports->find(
     $query,
     [
@@ -30,6 +49,7 @@ $allReports = $reports->find(
         ]
     ]
 );
+
 
 $totalReports = $reports->countDocuments();
 
@@ -53,7 +73,11 @@ $rejectedReports = $reports->countDocuments([
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>Admin Reports</title>
 
@@ -76,7 +100,13 @@ body {
 }
 
 .topbar {
-    background: linear-gradient(135deg,#24103d,#5b2181,#7c3aed);
+    background:
+        linear-gradient(
+            135deg,
+            #24103d,
+            #5b2181,
+            #7c3aed
+        );
     color: white;
     padding: 20px 35px;
     display: flex;
@@ -380,6 +410,7 @@ th {
 }
 
 @media(max-width:900px) {
+
     .stats {
         grid-template-columns: repeat(2,1fr);
     }
@@ -390,6 +421,7 @@ th {
 }
 
 @media(max-width:550px) {
+
     .stats {
         grid-template-columns: 1fr;
     }
@@ -418,8 +450,15 @@ th {
         </div>
 
         <div>
-            <h1>Admin Control Center</h1>
-            <small>REPORT MANAGEMENT</small>
+
+            <h1>
+                Admin Control Center
+            </h1>
+
+            <small>
+                REPORT MANAGEMENT
+            </small>
+
         </div>
 
     </div>
@@ -427,7 +466,11 @@ th {
     <div class="user">
 
         <span>
-            <?php echo htmlspecialchars($_SESSION["name"]); ?>
+            <?php
+            echo htmlspecialchars(
+                $_SESSION["name"] ?? "Admin"
+            );
+            ?>
         </span>
 
         <a href="../logout.php">
@@ -441,23 +484,31 @@ th {
 <nav class="nav">
 
     <a href="dashboard.php">
-        <i class="fa-solid fa-chart-line"></i> Dashboard
+        <i class="fa-solid fa-chart-line"></i>
+        Dashboard
     </a>
 
-    <a class="active" href="reports.php">
-        <i class="fa-solid fa-file-lines"></i> Reports
+    <a
+        class="active"
+        href="reports.php"
+    >
+        <i class="fa-solid fa-file-lines"></i>
+        Reports
     </a>
 
     <a href="claim.php">
-        <i class="fa-solid fa-hand-holding"></i> Claims
+        <i class="fa-solid fa-hand-holding"></i>
+        Claims
     </a>
 
     <a href="manage_staff.php">
-        <i class="fa-solid fa-users-gear"></i> Staff
+        <i class="fa-solid fa-users-gear"></i>
+        Staff
     </a>
 
     <a href="create_staff.php">
-        <i class="fa-solid fa-user-plus"></i> Create Staff
+        <i class="fa-solid fa-user-plus"></i>
+        Create Staff
     </a>
 
 </nav>
@@ -467,62 +518,118 @@ th {
     <div class="page-head">
 
         <div>
-            <h2>Report Management</h2>
-            <p>Review every lost and found report in the system.</p>
+
+            <h2>
+                Report Management
+            </h2>
+
+            <p>
+                Review every lost and found report in the system.
+            </p>
+
         </div>
 
     </div>
-
 
     <section class="stats">
 
         <div class="stat">
-            <small>All Reports</small>
-            <strong><?php echo $totalReports; ?></strong>
+
+            <small>
+                All Reports
+            </small>
+
+            <strong>
+                <?php echo $totalReports; ?>
+            </strong>
+
         </div>
 
         <div class="stat">
-            <small>Pending</small>
-            <strong><?php echo $pendingReports; ?></strong>
+
+            <small>
+                Pending
+            </small>
+
+            <strong>
+                <?php echo $pendingReports; ?>
+            </strong>
+
         </div>
 
         <div class="stat">
-            <small>Approved</small>
-            <strong><?php echo $approvedReports; ?></strong>
+
+            <small>
+                Approved
+            </small>
+
+            <strong>
+                <?php echo $approvedReports; ?>
+            </strong>
+
         </div>
 
         <div class="stat">
-            <small>Rejected</small>
-            <strong><?php echo $rejectedReports; ?></strong>
+
+            <small>
+                Rejected
+            </small>
+
+            <strong>
+                <?php echo $rejectedReports; ?>
+            </strong>
+
         </div>
 
     </section>
 
-
     <div class="filters">
 
-        <a class="<?php echo $filter === 'all' ? 'active' : ''; ?>"
-           href="reports.php?status=all">
+        <a
+            class="<?php
+                echo $filter === 'all'
+                    ? 'active'
+                    : '';
+            ?>"
+            href="reports.php?status=all"
+        >
             All
         </a>
 
-        <a class="<?php echo $filter === 'pending' ? 'active' : ''; ?>"
-           href="reports.php?status=pending">
+        <a
+            class="<?php
+                echo $filter === 'pending'
+                    ? 'active'
+                    : '';
+            ?>"
+            href="reports.php?status=pending"
+        >
             Pending
         </a>
 
-        <a class="<?php echo $filter === 'approved' ? 'active' : ''; ?>"
-           href="reports.php?status=approved">
+        <a
+            class="<?php
+                echo $filter === 'approved'
+                    ? 'active'
+                    : '';
+            ?>"
+            href="reports.php?status=approved"
+        >
             Approved
         </a>
 
-        <a class="<?php echo $filter === 'rejected' ? 'active' : ''; ?>"
-           href="reports.php?status=rejected">
+        <a
+            class="<?php
+                echo $filter === 'rejected'
+                    ? 'active'
+                    : '';
+            ?>"
+            href="reports.php?status=rejected"
+        >
             Rejected
         </a>
 
     </div>
-
 
     <section class="table-card">
 
@@ -533,12 +640,19 @@ th {
                 <thead>
 
                 <tr>
+
                     <th>Item</th>
+
                     <th>Type</th>
+
                     <th>Student</th>
+
                     <th>Location</th>
+
                     <th>Status</th>
+
                     <th>Details</th>
+
                 </tr>
 
                 </thead>
@@ -549,14 +663,23 @@ th {
 
                 <?php foreach ($allReports as $report): ?>
 
-                    <?php $hasReports = true; ?>
-
                     <?php
 
-                    $imagePath = $report["image_path"] ?? "";
+                    $hasReports = true;
 
-                    if ($imagePath !== "" && !str_starts_with($imagePath, "../")) {
-                        $imagePath = "../" . ltrim($imagePath, "/");
+                    $imagePath =
+                        getAdminImageUrl(
+                            $report["image_path"] ?? ""
+                        );
+
+                    $reportData = $report;
+
+                    if (
+                        $reportData
+                        instanceof MongoDB\Model\BSONDocument
+                    ) {
+                        $reportData =
+                            $reportData->getArrayCopy();
                     }
 
                     ?>
@@ -571,20 +694,35 @@ th {
 
                                     <img
                                         class="item-photo"
-                                        src="<?php echo htmlspecialchars($imagePath); ?>"
+                                        src="<?php
+                                            echo htmlspecialchars(
+                                                $imagePath
+                                            );
+                                        ?>"
                                         alt="Item"
                                     >
 
                                 <?php else: ?>
 
                                     <div class="no-photo">
-                                        <i class="fa-solid fa-image"></i>
+
+                                        <i
+                                            class="fa-solid fa-image"
+                                        ></i>
+
                                     </div>
 
                                 <?php endif; ?>
 
                                 <strong>
-                                    <?php echo htmlspecialchars($report["item_name"] ?? "Unknown"); ?>
+
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $report["item_name"]
+                                        ?? "Unknown"
+                                    );
+                                    ?>
+
                                 </strong>
 
                             </div>
@@ -593,27 +731,69 @@ th {
 
                         <td>
 
-                            <span class="<?php echo ($report["type"] ?? "") === "lost" ? "lost" : "found"; ?>">
+                            <span
+                                class="<?php
+                                    echo
+                                        ($report["type"] ?? "")
+                                        === "lost"
+                                        ? "lost"
+                                        : "found";
+                                ?>"
+                            >
 
-                                <?php echo htmlspecialchars(ucfirst($report["type"] ?? "")); ?>
+                                <?php
+                                echo htmlspecialchars(
+                                    ucfirst(
+                                        $report["type"] ?? ""
+                                    )
+                                );
+                                ?>
 
                             </span>
 
                         </td>
 
                         <td>
-                            <?php echo htmlspecialchars($report["student_name"] ?? "Unknown"); ?>
+
+                            <?php
+                            echo htmlspecialchars(
+                                $report["student_name"]
+                                ?? "Unknown"
+                            );
+                            ?>
+
                         </td>
 
                         <td>
-                            <?php echo htmlspecialchars($report["location"] ?? "N/A"); ?>
+
+                            <?php
+                            echo htmlspecialchars(
+                                $report["location"]
+                                ?? "N/A"
+                            );
+                            ?>
+
                         </td>
 
                         <td>
 
-                            <span class="badge <?php echo htmlspecialchars($report["status"] ?? "pending"); ?>">
+                            <span
+                                class="badge <?php
+                                    echo htmlspecialchars(
+                                        $report["status"]
+                                        ?? "pending"
+                                    );
+                                ?>"
+                            >
 
-                                <?php echo htmlspecialchars(ucfirst($report["status"] ?? "pending")); ?>
+                                <?php
+                                echo htmlspecialchars(
+                                    ucfirst(
+                                        $report["status"]
+                                        ?? "pending"
+                                    )
+                                );
+                                ?>
 
                             </span>
 
@@ -624,11 +804,27 @@ th {
                             <button
                                 class="view-btn"
                                 onclick='openReport(
-                                    <?php echo json_encode($report, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>
+                                    <?php
+                                    echo json_encode(
+                                        $reportData,
+                                        JSON_HEX_TAG |
+                                        JSON_HEX_APOS |
+                                        JSON_HEX_QUOT |
+                                        JSON_HEX_AMP
+                                    );
+                                    ?>,
+                                    <?php
+                                    echo json_encode(
+                                        $imagePath
+                                    );
+                                    ?>
                                 )'
                             >
+
                                 <i class="fa-solid fa-eye"></i>
+
                                 View
+
                             </button>
 
                         </td>
@@ -642,9 +838,19 @@ th {
 
                     <tr>
 
-                        <td colspan="6" style="text-align:center;padding:45px;color:#8b8193;">
+                        <td
+                            colspan="6"
+                            style="
+                                text-align:center;
+                                padding:45px;
+                                color:#8b8193;
+                            "
+                        >
 
-                            <i class="fa-solid fa-folder-open" style="font-size:35px;"></i>
+                            <i
+                                class="fa-solid fa-folder-open"
+                                style="font-size:35px;"
+                            ></i>
 
                             <br><br>
 
@@ -666,58 +872,98 @@ th {
 
 </main>
 
-
-<div class="modal" id="reportModal">
+<div
+    class="modal"
+    id="reportModal"
+>
 
     <div class="modal-box">
 
-        <button class="close" onclick="closeReport()">
+        <button
+            class="close"
+            onclick="closeReport()"
+        >
+
             <i class="fa-solid fa-xmark"></i>
+
         </button>
 
-        <h2 id="modalTitle">Report Details</h2>
+        <h2 id="modalTitle">
+            Report Details
+        </h2>
 
-        <img id="modalPhoto" class="modal-photo" style="display:none;">
+        <img
+            id="modalPhoto"
+            class="modal-photo"
+            style="display:none;"
+            alt="Reported item"
+        >
 
         <div class="detail">
-            <strong>Report Type</strong>
+
+            <strong>
+                Report Type
+            </strong>
+
             <span id="modalType"></span>
+
         </div>
 
         <div class="detail">
-            <strong>Student</strong>
+
+            <strong>
+                Student
+            </strong>
+
             <span id="modalStudent"></span>
+
         </div>
 
         <div class="detail">
-            <strong>Description</strong>
+
+            <strong>
+                Description
+            </strong>
+
             <span id="modalDescription"></span>
+
         </div>
 
         <div class="detail">
-            <strong>Location</strong>
+
+            <strong>
+                Location
+            </strong>
+
             <span id="modalLocation"></span>
+
         </div>
 
         <div class="detail">
-            <strong>Status</strong>
+
+            <strong>
+                Status
+            </strong>
+
             <span id="modalStatus"></span>
+
         </div>
 
     </div>
 
 </div>
 
-
 <script>
 
-function openReport(report) {
+function openReport(report, imagePath) {
 
     document.getElementById("modalTitle").textContent =
         report.item_name || "Report Details";
 
     document.getElementById("modalType").textContent =
-        report.type ? report.type.toUpperCase() : "N/A";
+        report.type
+            ? report.type.toUpperCase()
+            : "N/A";
 
     document.getElementById("modalStudent").textContent =
         report.student_name || "N/A";
@@ -729,45 +975,52 @@ function openReport(report) {
         report.location || "N/A";
 
     document.getElementById("modalStatus").textContent =
-        report.status ? report.status.toUpperCase() : "N/A";
+        report.status
+            ? report.status.toUpperCase()
+            : "N/A";
 
-    const photo = document.getElementById("modalPhoto");
+    const photo =
+        document.getElementById("modalPhoto");
 
-    if (report.image_path) {
+    if (imagePath) {
 
-        let path = report.image_path;
+        photo.src = imagePath;
 
-        if (!path.startsWith("../")) {
-            path = "../" + path.replace(/^\/+/, "");
-        }
-
-        photo.src = path;
         photo.style.display = "block";
 
     } else {
 
         photo.style.display = "none";
 
+        photo.removeAttribute("src");
+
     }
 
-    document.getElementById("reportModal").style.display = "flex";
+    document.getElementById("reportModal").style.display =
+        "flex";
 }
 
 function closeReport() {
-    document.getElementById("reportModal").style.display = "none";
+
+    document.getElementById("reportModal").style.display =
+        "none";
 }
 
 window.onclick = function(event) {
 
-    const modal = document.getElementById("reportModal");
+    const modal =
+        document.getElementById("reportModal");
 
     if (event.target === modal) {
+
         closeReport();
+
     }
 
-}
+};
 
 </script>
 
 </body>
+
 </html>

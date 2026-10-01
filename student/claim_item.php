@@ -11,126 +11,71 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Zayncaleb\Lostandfoundsystem\Database;
 use MongoDB\BSON\ObjectId;
+use MongoDB\BSON\UTCDateTime;
 
 $db = new Database();
 
-$reports = $db->getDatabase()->reports;
 $claims = $db->getDatabase()->claims;
+$reports = $db->getDatabase()->reports;
 
-$itemId = $_GET["id"] ?? "";
 
-try {
+/*
+|--------------------------------------------------------------------------
+| Image URL Helper
+|--------------------------------------------------------------------------
+*/
+function getStudentImageUrl($imagePath): string
+{
+    if (empty($imagePath)) {
+        return "";
+    }
 
-    $item = $reports->findOne([
-        "_id" => new ObjectId($itemId),
-        "type" => "found",
-        "status" => "pending"
-    ]);
+    $imagePath = trim((string)$imagePath);
 
-} catch (Exception $e) {
+    /*
+    | Cloudinary / external URL
+    */
+    if (preg_match('/^https?:\/\//i', $imagePath)) {
+        return $imagePath;
+    }
 
-    $item = null;
+    /*
+    | Old local image
+    */
+    return "../" . ltrim($imagePath, "/\\");
 }
 
 
-if (!$item) {
+$itemId = trim($_GET["id"] ?? "");
 
-    ?>
-
-    <!DOCTYPE html>
-    <html>
-
-    <head>
-
-        <title>Item Not Found</title>
-
-        <link rel="stylesheet" href="../style.css">
-        <link rel="stylesheet" href="student.css">
-
-    </head>
-
-    <body class="student-dashboard">
-
-    <?php include __DIR__ . '/../navbar.php'; ?>
-
-    <main class="claim-page">
-
-        <div class="empty-results">
-
-            <div class="empty-icon">
-                🔎
-            </div>
-
-            <h2>
-                Item Not Found
-            </h2>
-
-            <p>
-                This item may have already been claimed or is no longer available.
-            </p>
-
-            <a
-                href="search_items.php?type=found"
-                class="secondary-button"
-            >
-                ← Back to Found Items
-            </a>
-
-        </div>
-
-    </main>
-
-    </body>
-
-    </html>
-
-    <?php
-
-    exit;
-}
+$item = null;
 
 
-$message = "";
-$messageType = "";
+/*
+|--------------------------------------------------------------------------
+| Validate MongoDB ObjectId
+|--------------------------------------------------------------------------
+*/
+if ($itemId !== "" && preg_match('/^[a-f0-9]{24}$/i', $itemId)) {
 
+    try {
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $reason = trim($_POST["reason"] ?? "");
-
-    if ($reason === "") {
-
-        $message = "Please explain why this item belongs to you.";
-        $messageType = "error";
-
-    } else {
-
-        $existingClaim = $claims->findOne([
-            "item_id" => (string) $item["_id"],
-            "student_id" => $_SESSION["user_id"]
+        $item = $reports->findOne([
+            "_id" => new ObjectId($itemId),
+            "type" => "found",
+            "status" => "pending"
         ]);
 
-        if ($existingClaim) {
+    } catch (Exception $e) {
 
-            $message = "You have already submitted a claim for this item.";
-            $messageType = "error";
+        $item = null;
 
-        } else {
-
-            $claims->insertOne([
-                "item_id" => (string) $item["_id"],
-                "student_id" => $_SESSION["user_id"],
-                "student_name" => $_SESSION["name"],
-                "reason" => $reason,
-                "status" => "pending",
-                "created_at" => new MongoDB\BSON\UTCDateTime()
-            ]);
-
-            $message = "Claim submitted successfully!";
-            $messageType = "success";
-        }
     }
+
 }
+
+
+if (!$item):
 
 ?>
 
@@ -142,6 +87,151 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        Item Not Found
+    </title>
+
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="student.css">
+
+</head>
+
+<body class="student-dashboard">
+
+<?php include __DIR__ . '/../navbar.php'; ?>
+
+<main class="claim-page">
+
+    <div class="empty-results">
+
+        <div class="empty-icon">
+            🔎
+        </div>
+
+        <h2>
+            Item Not Found
+        </h2>
+
+        <p>
+            This item may have already been claimed or is no longer available.
+        </p>
+
+        <a
+            href="search_items.php?type=found"
+            class="secondary-button"
+        >
+            ← Back to Found Items
+        </a>
+
+    </div>
+
+</main>
+
+</body>
+
+</html>
+
+<?php
+
+exit;
+
+endif;
+
+
+/*
+|--------------------------------------------------------------------------
+| Prepare Image
+|--------------------------------------------------------------------------
+*/
+$imageUrl = getStudentImageUrl(
+    $item["image_path"] ?? ""
+);
+
+
+$message = "";
+$messageType = "";
+
+
+/*
+|--------------------------------------------------------------------------
+| Submit Claim
+|--------------------------------------------------------------------------
+*/
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    $reason = trim($_POST["reason"] ?? "");
+
+
+    if ($reason === "") {
+
+        $message = "Please explain why this item belongs to you.";
+        $messageType = "error";
+
+    } else {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Prevent duplicate claims
+        |--------------------------------------------------------------------------
+        */
+        $existingClaim = $claims->findOne([
+            "item_id" => (string)$item["_id"],
+            "student_id" => $_SESSION["user_id"]
+        ]);
+
+
+        if ($existingClaim) {
+
+            $message = "You have already submitted a claim for this item.";
+            $messageType = "error";
+
+        } else {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Claim
+            |--------------------------------------------------------------------------
+            */
+            $claims->insertOne([
+
+                "item_id" => (string)$item["_id"],
+
+                "student_id" => $_SESSION["user_id"],
+
+                "student_name" => $_SESSION["name"] ?? "Student",
+
+                "reason" => $reason,
+
+                "status" => "pending",
+
+                "created_at" => new UTCDateTime()
+
+            ]);
+
+
+            $message = "Claim submitted successfully!";
+            $messageType = "success";
+
+        }
+
+    }
+
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>
         Claim Item
@@ -167,14 +257,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <div class="claim-item-image">
 
-            <?php if (!empty($item["image_path"])): ?>
+            <?php if ($imageUrl !== ""): ?>
 
                 <img
-                    src="../<?php echo htmlspecialchars(
-                        $item["image_path"]
-                    ); ?>"
+                    src="<?php echo htmlspecialchars($imageUrl); ?>"
                     alt="<?php echo htmlspecialchars(
-                        $item["item_name"]
+                        $item["item_name"] ?? "Found Item"
                     ); ?>"
                 >
 
@@ -198,40 +286,62 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </span>
 
             <h1>
+
                 <?php echo htmlspecialchars(
-                    $item["item_name"]
+                    $item["item_name"] ?? "Unknown Item"
                 ); ?>
+
             </h1>
 
             <p class="claim-description">
+
                 <?php echo htmlspecialchars(
-                    $item["description"]
+                    $item["description"] ?? "No description provided."
                 ); ?>
+
             </p>
 
 
             <div class="claim-details">
 
+
                 <div>
+
                     <span>📍</span>
-                    <strong>Location Found</strong>
+
+                    <strong>
+                        Location Found
+                    </strong>
+
                     <p>
+
                         <?php echo htmlspecialchars(
-                            $item["location"]
+                            $item["location"] ?? "Not provided"
                         ); ?>
+
                     </p>
+
                 </div>
 
 
                 <div>
+
                     <span>📅</span>
-                    <strong>Date Found</strong>
+
+                    <strong>
+                        Date Found
+                    </strong>
+
                     <p>
+
                         <?php echo htmlspecialchars(
                             $item["date_found"] ?? "Not provided"
                         ); ?>
+
                     </p>
+
                 </div>
+
 
             </div>
 
@@ -244,6 +354,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <!-- CLAIM FORM -->
 
     <section class="claim-form-card">
+
 
         <div class="claim-form-header">
 
@@ -268,12 +379,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <?php if ($message !== ""): ?>
 
-            <div class="form-message <?php echo $messageType; ?>">
+            <div class="form-message <?php echo htmlspecialchars($messageType); ?>">
 
                 <span>
+
                     <?php echo $messageType === "success"
                         ? "✓"
                         : "!"; ?>
+
                 </span>
 
                 <?php echo htmlspecialchars($message); ?>
@@ -310,12 +423,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             <div class="claim-warning">
 
-                <span>⚠️</span>
+                <span>
+                    ⚠️
+                </span>
 
                 <p>
+
                     Only submit a claim if you genuinely believe this item
                     belongs to you. Staff may review your explanation before
                     approving the claim.
+
                 </p>
 
             </div>
@@ -340,6 +457,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
 
         </form>
+
 
     </section>
 

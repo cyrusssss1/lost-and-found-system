@@ -12,19 +12,26 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Zayncaleb\Lostandfoundsystem\Database;
 
 $db = new Database();
+
 $database = $db->getDatabase();
 
 $users = $database->users;
 $reports = $database->reports;
 $claims = $database->claims;
 
-/* ==============================
-   STATISTICS
-   ============================== */
+
+/* =========================================================
+   STAFF
+   ========================================================= */
 
 $totalStaff = $users->countDocuments([
     "role" => "staff"
 ]);
+
+
+/* =========================================================
+   REPORTS
+   ========================================================= */
 
 $totalReports = $reports->countDocuments();
 
@@ -40,6 +47,19 @@ $rejectedReports = $reports->countDocuments([
     "status" => "rejected"
 ]);
 
+$totalLost = $reports->countDocuments([
+    "type" => "lost"
+]);
+
+$totalFound = $reports->countDocuments([
+    "type" => "found"
+]);
+
+
+/* =========================================================
+   CLAIMS
+   ========================================================= */
+
 $totalClaims = $claims->countDocuments();
 
 $pendingClaims = $claims->countDocuments([
@@ -54,17 +74,10 @@ $rejectedClaims = $claims->countDocuments([
     "status" => "rejected"
 ]);
 
-$totalLost = $reports->countDocuments([
-    "type" => "lost"
-]);
 
-$totalFound = $reports->countDocuments([
-    "type" => "found"
-]);
-
-/* ==============================
+/* =========================================================
    RECENT REPORTS
-   ============================== */
+   ========================================================= */
 
 $recentReports = $reports->find(
     [],
@@ -76,9 +89,10 @@ $recentReports = $reports->find(
     ]
 );
 
-/* ==============================
+
+/* =========================================================
    RECENT CLAIMS
-   ============================== */
+   ========================================================= */
 
 $recentClaims = $claims->find(
     [],
@@ -93,14 +107,19 @@ $recentClaims = $claims->find(
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Admin Control Center</title>
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>Admin Dashboard</title>
 
 <link
     rel="stylesheet"
@@ -114,396 +133,493 @@ $recentClaims = $claims->find(
 }
 
 body {
+
     margin: 0;
-    font-family: "Segoe UI", Arial, sans-serif;
+
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
     background:
-        radial-gradient(circle at top right, rgba(124, 58, 237, .18), transparent 30%),
+        radial-gradient(
+            circle at top right,
+            rgba(124,58,237,.13),
+            transparent 30%
+        ),
         #f5f3f8;
-    color: #241b35;
+
+    color: #281b36;
 }
 
 .topbar {
-    height: 76px;
-    background: linear-gradient(135deg, #24103d, #4c1d70 55%, #6d28a8);
+
+    background:
+        linear-gradient(
+            135deg,
+            #24103d,
+            #5b2181,
+            #7c3aed
+        );
+
     color: white;
+
+    padding: 20px 35px;
+
     display: flex;
-    align-items: center;
+
     justify-content: space-between;
-    padding: 0 35px;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    box-shadow: 0 8px 25px rgba(37, 17, 60, .22);
+
+    align-items: center;
+
+    box-shadow:
+        0 8px 25px
+        rgba(40,20,60,.2);
 }
 
 .brand {
+
     display: flex;
+
     align-items: center;
+
     gap: 13px;
 }
 
 .brand-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 13px;
-    background: rgba(255,255,255,.15);
+
+    width: 46px;
+    height: 46px;
+
+    border-radius: 14px;
+
+    background:
+        rgba(255,255,255,.15);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     font-size: 20px;
 }
 
 .brand h1 {
+
     margin: 0;
+
     font-size: 19px;
 }
 
-.brand span {
-    font-size: 11px;
+.brand small {
+
     opacity: .7;
+
+    font-size: 10px;
+
+    letter-spacing: 1px;
 }
 
-.admin-user {
+.user {
+
     display: flex;
+
     align-items: center;
-    gap: 12px;
+
+    gap: 15px;
 }
 
-.avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #d8b4fe;
-    color: #3b0764;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-}
+.user a {
 
-.logout {
     color: white;
-    text-decoration: none;
-    margin-left: 18px;
-    opacity: .8;
-}
 
-.logout:hover {
-    opacity: 1;
+    text-decoration: none;
+
+    font-size: 18px;
 }
 
 .nav {
+
     background: white;
-    border-bottom: 1px solid #e9e2f2;
+
+    border-bottom:
+        1px solid #e9e2f2;
+
     padding: 0 35px;
+
     display: flex;
-    gap: 8px;
+
     overflow-x: auto;
 }
 
 .nav a {
-    padding: 17px 18px;
+
+    color: #71667c;
+
     text-decoration: none;
-    color: #665b73;
-    font-size: 14px;
+
+    padding: 17px;
+
     font-weight: 600;
+
     white-space: nowrap;
 }
 
 .nav a:hover,
 .nav a.active {
-    color: #6d28a8;
-    border-bottom: 3px solid #7c3aed;
+
+    color: #7c3aed;
+
+    border-bottom:
+        3px solid #7c3aed;
 }
 
 .container {
+
     max-width: 1450px;
+
     margin: auto;
+
     padding: 35px;
 }
 
 .hero {
-    background:
-        linear-gradient(135deg, #2e1248, #5b2181 60%, #7c3aed);
-    border-radius: 24px;
-    padding: 35px;
-    color: white;
-    box-shadow: 0 18px 40px rgba(76,29,112,.22);
-    position: relative;
-    overflow: hidden;
-}
 
-.hero:after {
-    content: "";
-    position: absolute;
-    width: 260px;
-    height: 260px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.07);
-    right: -80px;
-    top: -100px;
+    background:
+        linear-gradient(
+            135deg,
+            #24103d,
+            #5b2181,
+            #7c3aed
+        );
+
+    color: white;
+
+    border-radius: 25px;
+
+    padding: 35px;
+
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 15px 35px
+        rgba(76,29,112,.18);
 }
 
 .hero h2 {
+
     margin: 0 0 8px;
+
     font-size: 30px;
 }
 
 .hero p {
+
     margin: 0;
+
     opacity: .8;
 }
 
-.section-title {
-    margin: 32px 0 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+.stats {
 
-.section-title h2 {
-    margin: 0;
-    font-size: 20px;
-}
-
-.cards {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+
+    grid-template-columns:
+        repeat(4,1fr);
+
     gap: 18px;
+
+    margin-bottom: 25px;
 }
 
-.card {
+.stat {
+
     background: white;
-    border: 1px solid #eee8f5;
-    border-radius: 20px;
+
+    border:
+        1px solid #eee8f5;
+
+    border-radius: 18px;
+
     padding: 22px;
-    box-shadow: 0 8px 25px rgba(48, 28, 67, .07);
-    transition: .2s;
+
+    box-shadow:
+        0 8px 25px
+        rgba(40,20,60,.06);
 }
 
-.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 32px rgba(48, 28, 67, .12);
-}
+.stat-icon {
 
-.card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+    width: 42px;
+    height: 42px;
 
-.card-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 19px;
-}
+    border-radius: 12px;
 
-.purple {
-    background: #f1e8ff;
+    background: #f0e9ff;
+
     color: #7c3aed;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin-bottom: 15px;
 }
 
-.blue {
-    background: #e8f1ff;
-    color: #2563eb;
+.stat small {
+
+    color: #81758c;
 }
 
-.green {
-    background: #e7f8ef;
-    color: #15803d;
+.stat strong {
+
+    display: block;
+
+    font-size: 29px;
+
+    margin-top: 5px;
 }
 
-.orange {
-    background: #fff2df;
-    color: #c2410c;
+.stat.green strong {
+
+    color: #16a34a;
 }
 
-.card-label {
-    margin-top: 18px;
-    color: #766b81;
-    font-size: 13px;
+.stat.orange strong {
+
+    color: #d97706;
 }
 
-.card-number {
-    font-size: 30px;
-    font-weight: 800;
-    margin-top: 4px;
-}
+.stat.red strong {
 
-.quick-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
+    color: #dc2626;
 }
 
 .quick {
-    text-decoration: none;
-    color: #291b39;
-    background: white;
-    border-radius: 18px;
-    padding: 22px;
-    border: 1px solid #eee8f5;
-    box-shadow: 0 7px 22px rgba(48,28,67,.06);
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4,1fr);
+
+    gap: 15px;
+
+    margin-bottom: 25px;
 }
 
-.quick:hover {
-    border-color: #c4b5fd;
+.quick a {
+
+    background: white;
+
+    border:
+        1px solid #eee8f5;
+
+    border-radius: 16px;
+
+    padding: 18px;
+
+    color: #382649;
+
+    text-decoration: none;
+
+    box-shadow:
+        0 7px 22px
+        rgba(40,20,60,.05);
+}
+
+.quick a:hover {
+
     transform: translateY(-2px);
+
+    border-color: #c4b5fd;
 }
 
 .quick i {
+
     color: #7c3aed;
-    font-size: 22px;
-    margin-bottom: 14px;
+
+    margin-right: 8px;
 }
 
-.quick strong {
-    display: block;
-    margin-bottom: 5px;
-}
+.activity-grid {
 
-.quick span {
-    font-size: 13px;
-    color: #7b7184;
-}
-
-.dashboard-columns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap: 22px;
 }
 
-.panel {
+.activity {
+
     background: white;
+
+    border:
+        1px solid #eee8f5;
+
     border-radius: 20px;
-    border: 1px solid #eee8f5;
-    box-shadow: 0 8px 25px rgba(48,28,67,.06);
+
     overflow: hidden;
+
+    box-shadow:
+        0 8px 25px
+        rgba(40,20,60,.06);
 }
 
-.panel-header {
-    padding: 20px 22px;
-    border-bottom: 1px solid #eee8f5;
+.activity-head {
+
+    padding: 20px;
+
+    border-bottom:
+        1px solid #eee8f5;
+
     display: flex;
+
     justify-content: space-between;
+
+    align-items: center;
 }
 
-.panel-header h3 {
+.activity-head h3 {
+
     margin: 0;
+
+    font-size: 17px;
 }
 
-.panel-header a {
+.activity-head a {
+
     color: #7c3aed;
+
+    font-size: 12px;
+
+    font-weight: 800;
+
     text-decoration: none;
-    font-size: 13px;
 }
 
-.table-wrap {
-    overflow-x: auto;
+.activity-list {
+
+    padding: 0 20px;
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
+.activity-item {
+
+    padding: 16px 0;
+
+    border-bottom:
+        1px solid #f0ecf4;
 }
 
-th,
-td {
-    padding: 14px 18px;
-    text-align: left;
-    border-bottom: 1px solid #f0ecf4;
-    font-size: 13px;
+.activity-item:last-child {
+
+    border-bottom: 0;
 }
 
-th {
-    color: #756a80;
-    font-size: 11px;
-    text-transform: uppercase;
+.activity-item strong {
+
+    display: block;
+
+    margin-bottom: 4px;
 }
 
-.badge {
-    display: inline-flex;
-    padding: 5px 9px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-}
+.activity-item span {
 
-.badge.pending {
-    background: #fff4d6;
-    color: #a16207;
-}
+    color: #81758c;
 
-.badge.approved {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.badge.rejected {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.type-lost {
-    color: #dc2626;
-    font-weight: 700;
-}
-
-.type-found {
-    color: #15803d;
-    font-weight: 700;
-}
-
-.footer {
-    text-align: center;
-    padding: 30px;
-    color: #8b8292;
     font-size: 12px;
 }
 
-@media (max-width: 1100px) {
-    .cards {
-        grid-template-columns: repeat(2, 1fr);
+.badge {
+
+    display: inline-block;
+
+    padding: 5px 9px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    margin-top: 7px;
+}
+
+.pending {
+
+    background: #fff4d6;
+
+    color: #a16207;
+}
+
+.approved {
+
+    background: #dcfce7;
+
+    color: #166534;
+}
+
+.rejected {
+
+    background: #fee2e2;
+
+    color: #991b1b;
+}
+
+.empty {
+
+    color: #8b8193;
+
+    text-align: center;
+
+    padding: 30px 10px;
+}
+
+@media(max-width:1000px) {
+
+    .stats,
+    .quick {
+
+        grid-template-columns:
+            repeat(2,1fr);
     }
 
-    .quick-grid {
+    .activity-grid {
+
         grid-template-columns: 1fr;
     }
 }
 
-@media (max-width: 800px) {
-    .dashboard-columns {
+@media(max-width:600px) {
+
+    .stats,
+    .quick {
+
         grid-template-columns: 1fr;
     }
 
     .topbar {
-        padding: 0 18px;
+
+        padding: 18px;
     }
 
-    .admin-user span {
-        display: none;
+    .nav {
+
+        padding: 0 10px;
     }
 
     .container {
-        padding: 20px;
-    }
-}
 
-@media (max-width: 550px) {
-    .cards {
-        grid-template-columns: 1fr;
+        padding: 20px 15px;
     }
 
     .hero {
-        padding: 25px;
-    }
 
-    .hero h2 {
-        font-size: 24px;
+        padding: 25px;
     }
 }
 
@@ -518,28 +634,39 @@ th {
     <div class="brand">
 
         <div class="brand-icon">
+
             <i class="fa-solid fa-crown"></i>
+
         </div>
 
         <div>
-            <h1>Lost & Found</h1>
-            <span>ADMIN CONTROL CENTER</span>
+
+            <h1>
+                Admin Control Center
+            </h1>
+
+            <small>
+                SYSTEM ADMINISTRATION
+            </small>
+
         </div>
 
     </div>
 
-    <div class="admin-user">
-
-        <div class="avatar">
-            <?php echo strtoupper(substr($_SESSION["name"], 0, 1)); ?>
-        </div>
+    <div class="user">
 
         <span>
-            <?php echo htmlspecialchars($_SESSION["name"]); ?>
+            <?php
+            echo htmlspecialchars(
+                $_SESSION["name"] ?? "Admin"
+            );
+            ?>
         </span>
 
-        <a class="logout" href="../logout.php">
+        <a href="../logout.php">
+
             <i class="fa-solid fa-right-from-bracket"></i>
+
         </a>
 
     </div>
@@ -548,29 +675,47 @@ th {
 
 <nav class="nav">
 
-    <a class="active" href="dashboard.php">
+    <a
+        href="dashboard.php"
+        class="active"
+    >
+
         <i class="fa-solid fa-chart-line"></i>
+
         Dashboard
+
     </a>
 
     <a href="reports.php">
+
         <i class="fa-solid fa-file-lines"></i>
+
         Reports
+
     </a>
 
     <a href="claim.php">
+
         <i class="fa-solid fa-hand-holding"></i>
+
         Claims
+
     </a>
 
     <a href="manage_staff.php">
+
         <i class="fa-solid fa-users-gear"></i>
+
         Staff
+
     </a>
 
     <a href="create_staff.php">
+
         <i class="fa-solid fa-user-plus"></i>
+
         Create Staff
+
     </a>
 
 </nav>
@@ -580,287 +725,305 @@ th {
     <section class="hero">
 
         <h2>
-            Welcome back,
-            <?php echo htmlspecialchars($_SESSION["name"]); ?> 👋
+            Welcome, <?php
+            echo htmlspecialchars(
+                $_SESSION["name"] ?? "Admin"
+            );
+            ?>
         </h2>
 
         <p>
-            Manage your Lost & Found system from one centralized control center.
+            Monitor reports, claims and staff activity from one place.
         </p>
 
     </section>
 
 
-    <div class="section-title">
-        <h2>System Overview</h2>
-    </div>
+    <section class="stats">
 
-    <section class="cards">
+        <div class="stat">
 
-        <div class="card">
-            <div class="card-top">
-                <span>Reports</span>
-                <div class="card-icon purple">
-                    <i class="fa-solid fa-file-lines"></i>
-                </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-users"></i>
             </div>
 
-            <div class="card-label">Total reports</div>
-            <div class="card-number">
-                <?php echo $totalReports; ?>
-            </div>
-        </div>
+            <small>Total Staff</small>
 
-
-        <div class="card">
-            <div class="card-top">
-                <span>Pending</span>
-                <div class="card-icon orange">
-                    <i class="fa-solid fa-clock"></i>
-                </div>
-            </div>
-
-            <div class="card-label">Reports awaiting review</div>
-            <div class="card-number">
-                <?php echo $pendingReports; ?>
-            </div>
-        </div>
-
-
-        <div class="card">
-            <div class="card-top">
-                <span>Claims</span>
-                <div class="card-icon blue">
-                    <i class="fa-solid fa-hand-holding"></i>
-                </div>
-            </div>
-
-            <div class="card-label">Total claims</div>
-            <div class="card-number">
-                <?php echo $totalClaims; ?>
-            </div>
-        </div>
-
-
-        <div class="card">
-            <div class="card-top">
-                <span>Staff</span>
-                <div class="card-icon green">
-                    <i class="fa-solid fa-user-shield"></i>
-                </div>
-            </div>
-
-            <div class="card-label">Staff accounts</div>
-            <div class="card-number">
+            <strong>
                 <?php echo $totalStaff; ?>
-            </div>
+            </strong>
+
         </div>
 
-    </section>
+
+        <div class="stat">
+
+            <div class="stat-icon">
+                <i class="fa-solid fa-file-lines"></i>
+            </div>
+
+            <small>Total Reports</small>
+
+            <strong>
+                <?php echo $totalReports; ?>
+            </strong>
+
+        </div>
 
 
-    <div class="section-title">
-        <h2>Report & Claim Status</h2>
-    </div>
+        <div class="stat orange">
 
-    <section class="cards">
+            <div class="stat-icon">
+                <i class="fa-solid fa-clock"></i>
+            </div>
 
-        <div class="card">
-            <div class="card-label">Approved Reports</div>
-            <div class="card-number">
+            <small>Pending Reports</small>
+
+            <strong>
+                <?php echo $pendingReports; ?>
+            </strong>
+
+        </div>
+
+
+        <div class="stat green">
+
+            <div class="stat-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <small>Approved Reports</small>
+
+            <strong>
                 <?php echo $approvedReports; ?>
-            </div>
-        </div>
+            </strong>
 
-        <div class="card">
-            <div class="card-label">Rejected Reports</div>
-            <div class="card-number">
-                <?php echo $rejectedReports; ?>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-label">Approved Claims</div>
-            <div class="card-number">
-                <?php echo $approvedClaims; ?>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-label">Rejected Claims</div>
-            <div class="card-number">
-                <?php echo $rejectedClaims; ?>
-            </div>
         </div>
 
     </section>
 
 
-    <div class="section-title">
-        <h2>Quick Administration</h2>
-    </div>
+    <section class="quick">
 
-    <section class="quick-grid">
+        <a href="reports.php">
 
-        <a class="quick" href="reports.php">
-            <i class="fa-solid fa-folder-open"></i>
-            <strong>Review Reports</strong>
-            <span>
-                View all lost and found reports.
-            </span>
+            <i class="fa-solid fa-file-lines"></i>
+
+            Review Reports
+
         </a>
 
-        <a class="quick" href="claim.php">
-            <i class="fa-solid fa-list-check"></i>
-            <strong>Review Claims</strong>
-            <span>
-                Inspect student claims and item details.
-            </span>
+        <a href="claim.php">
+
+            <i class="fa-solid fa-hand-holding"></i>
+
+            Review Claims
+
         </a>
 
-        <a class="quick" href="manage_staff.php">
+        <a href="manage_staff.php">
+
             <i class="fa-solid fa-users-gear"></i>
-            <strong>Manage Staff</strong>
-            <span>
-                View and remove staff accounts.
-            </span>
+
+            Manage Staff
+
+        </a>
+
+        <a href="create_staff.php">
+
+            <i class="fa-solid fa-user-plus"></i>
+
+            Create Staff
+
         </a>
 
     </section>
 
 
-    <div class="section-title">
-        <h2>Recent Activity</h2>
-    </div>
+    <section class="activity-grid">
 
-    <section class="dashboard-columns">
 
-        <div class="panel">
+        <div class="activity">
 
-            <div class="panel-header">
+            <div class="activity-head">
 
-                <h3>Recent Reports</h3>
+                <h3>
+                    Recent Reports
+                </h3>
 
                 <a href="reports.php">
-                    View all
+                    View All
                 </a>
 
             </div>
 
-            <div class="table-wrap">
+            <div class="activity-list">
 
-                <table>
+                <?php
 
-                    <thead>
+                $hasRecentReports = false;
 
-                    <tr>
-                        <th>Item</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                    </tr>
+                foreach ($recentReports as $report):
 
-                    </thead>
+                    $hasRecentReports = true;
 
-                    <tbody>
+                ?>
 
-                    <?php foreach ($recentReports as $report): ?>
+                    <div class="activity-item">
 
-                        <tr>
+                        <strong>
 
-                            <td>
-                                <?php echo htmlspecialchars($report["item_name"] ?? "Unknown"); ?>
-                            </td>
+                            <?php
+                            echo htmlspecialchars(
+                                $report["item_name"]
+                                ?? "Unknown Item"
+                            );
+                            ?>
 
-                            <td>
+                        </strong>
 
-                                <span class="<?php echo ($report["type"] ?? "") === "lost" ? "type-lost" : "type-found"; ?>">
+                        <span>
 
-                                    <?php echo htmlspecialchars(ucfirst($report["type"] ?? "")); ?>
+                            <?php
+                            echo htmlspecialchars(
+                                $report["student_name"]
+                                ?? "Unknown Student"
+                            );
+                            ?>
 
-                                </span>
+                        </span>
 
-                            </td>
+                        <br>
 
-                            <td>
+                        <span>
 
-                                <span class="badge <?php echo htmlspecialchars($report["status"] ?? "pending"); ?>">
+                            <?php
+                            echo htmlspecialchars(
+                                ucfirst(
+                                    $report["type"]
+                                    ?? ""
+                                )
+                            );
+                            ?>
 
-                                    <?php echo htmlspecialchars(ucfirst($report["status"] ?? "pending")); ?>
+                        </span>
 
-                                </span>
+                        <br>
 
-                            </td>
+                        <span class="badge <?php
+                            echo htmlspecialchars(
+                                $report["status"]
+                                ?? "pending"
+                            );
+                        ?>">
 
-                        </tr>
+                            <?php
+                            echo htmlspecialchars(
+                                ucfirst(
+                                    $report["status"]
+                                    ?? "pending"
+                                )
+                            );
+                            ?>
 
-                    <?php endforeach; ?>
+                        </span>
 
-                    </tbody>
+                    </div>
 
-                </table>
+                <?php endforeach; ?>
+
+
+                <?php if (!$hasRecentReports): ?>
+
+                    <div class="empty">
+                        No reports yet.
+                    </div>
+
+                <?php endif; ?>
 
             </div>
 
         </div>
 
 
-        <div class="panel">
+        <div class="activity">
 
-            <div class="panel-header">
+            <div class="activity-head">
 
-                <h3>Recent Claims</h3>
+                <h3>
+                    Recent Claims
+                </h3>
 
                 <a href="claim.php">
-                    View all
+                    View All
                 </a>
 
             </div>
 
-            <div class="table-wrap">
+            <div class="activity-list">
 
-                <table>
+                <?php
 
-                    <thead>
+                $hasRecentClaims = false;
 
-                    <tr>
-                        <th>Student</th>
-                        <th>Reason</th>
-                        <th>Status</th>
-                    </tr>
+                foreach ($recentClaims as $claim):
 
-                    </thead>
+                    $hasRecentClaims = true;
 
-                    <tbody>
+                ?>
 
-                    <?php foreach ($recentClaims as $claim): ?>
+                    <div class="activity-item">
 
-                        <tr>
+                        <strong>
 
-                            <td>
-                                <?php echo htmlspecialchars($claim["student_name"] ?? "Unknown"); ?>
-                            </td>
+                            <?php
+                            echo htmlspecialchars(
+                                $claim["student_name"]
+                                ?? $claim["name"]
+                                ?? "Unknown Student"
+                            );
+                            ?>
 
-                            <td>
-                                <?php echo htmlspecialchars(substr($claim["reason"] ?? "", 0, 25)); ?>
-                            </td>
+                        </strong>
 
-                            <td>
+                        <span>
 
-                                <span class="badge <?php echo htmlspecialchars($claim["status"] ?? "pending"); ?>">
+                            Claim submitted
 
-                                    <?php echo htmlspecialchars(ucfirst($claim["status"] ?? "pending")); ?>
+                        </span>
 
-                                </span>
+                        <br>
 
-                            </td>
+                        <span class="badge <?php
+                            echo htmlspecialchars(
+                                $claim["status"]
+                                ?? "pending"
+                            );
+                        ?>">
 
-                        </tr>
+                            <?php
+                            echo htmlspecialchars(
+                                ucfirst(
+                                    $claim["status"]
+                                    ?? "pending"
+                                )
+                            );
+                            ?>
 
-                    <?php endforeach; ?>
+                        </span>
 
-                    </tbody>
+                    </div>
 
-                </table>
+                <?php endforeach; ?>
+
+
+                <?php if (!$hasRecentClaims): ?>
+
+                    <div class="empty">
+                        No claims yet.
+                    </div>
+
+                <?php endif; ?>
 
             </div>
 
@@ -870,9 +1033,6 @@ th {
 
 </main>
 
-<footer class="footer">
-    Lost & Found Management System • Administrator Control Center
-</footer>
-
 </body>
+
 </html>

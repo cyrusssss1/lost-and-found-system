@@ -1,119 +1,93 @@
 <?php
+
 session_start();
 
-if (!isset($_SESSION["user_id"]) || ($_SESSION["role"] ?? "") !== "admin") {
+if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "admin") {
     header("Location: ../index.php");
     exit;
 }
 
-require_once __DIR__ . "/../vendor/autoload.php";
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use Zayncaleb\Lostandfoundsystem\Database;
+use MongoDB\BSON\ObjectId;
 
 $db = new Database();
-$users = $db->getDatabase()->users;
+
+$database = $db->getDatabase();
+
+$users = $database->users;
+$reports = $database->reports;
+$claims = $database->claims;
 
 $message = "";
-$messageType = "";
+
+
+function getAdminImageUrl($imagePath): string
+{
+    if (empty($imagePath)) {
+        return "";
+    }
+
+    $imagePath = trim((string)$imagePath);
+
+    if (preg_match('/^https?:\/\//i', $imagePath)) {
+        return $imagePath;
+    }
+
+    return "../" . ltrim($imagePath, "/\\");
+}
 
 
 /* =========================================================
-   ADD STAFF
+   DELETE STAFF
    ========================================================= */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $action = $_POST["action"] ?? "";
+    $staffId = $_POST["staff_id"] ?? "";
 
+    if ($staffId !== "") {
 
-    /* =====================================================
-       CREATE STAFF
-       ===================================================== */
+        try {
 
-    if ($action === "add_staff") {
-
-        $name = trim($_POST["name"] ?? "");
-        $email = trim($_POST["email"] ?? "");
-        $password = $_POST["password"] ?? "";
-
-        if ($name === "" || $email === "" || $password === "") {
-
-            $message = "Please fill in all fields.";
-            $messageType = "error";
-
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-
-            $message = "Please enter a valid email address.";
-            $messageType = "error";
-
-        } elseif (strlen($password) < 6) {
-
-            $message = "Password must be at least 6 characters.";
-            $messageType = "error";
-
-        } else {
-
-            $existingUser = $users->findOne([
-                "email" => $email
+            $staff = $users->findOne([
+                "_id" => new ObjectId($staffId),
+                "role" => "staff"
             ]);
 
-            if ($existingUser) {
-
-                $message = "An account with this email already exists.";
-                $messageType = "error";
-
-            } else {
-
-                $users->insertOne([
-                    "name" => $name,
-                    "email" => $email,
-                    "password" => password_hash($password, PASSWORD_DEFAULT),
-                    "role" => "staff",
-                    "created_at" => new MongoDB\BSON\UTCDateTime()
-                ]);
-
-                $message = "Staff account created successfully.";
-                $messageType = "success";
-            }
-        }
-    }
-
-
-    /* =====================================================
-       DELETE STAFF
-       ===================================================== */
-
-    elseif ($action === "delete_staff") {
-
-        $staffId = $_POST["staff_id"] ?? "";
-
-        if ($staffId !== "") {
-
-            try {
+            if ($staff) {
 
                 $users->deleteOne([
-                    "_id" => new MongoDB\BSON\ObjectId($staffId),
+                    "_id" => $staff["_id"],
                     "role" => "staff"
                 ]);
 
-                $message = "Staff account deleted successfully.";
-                $messageType = "success";
+                $message =
+                    "Staff account deleted successfully.";
 
-            } catch (Exception $e) {
+            } else {
 
-                $message = "Unable to delete this staff account.";
-                $messageType = "error";
+                $message =
+                    "Staff account not found.";
+
             }
+
+        } catch (Exception $e) {
+
+            $message =
+                "Unable to delete staff account.";
+
         }
     }
 }
 
 
 /* =========================================================
-   GET STAFF
+   GET ALL STAFF
    ========================================================= */
 
-$staffMembers = $users->find(
+$staffUsers = $users->find(
     [
         "role" => "staff"
     ],
@@ -132,479 +106,799 @@ $staffMembers = $users->find(
 
 <head>
 
-```
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-<title>Manage Staff</title>
+<title>Manage Staff | Admin</title>
 
-<link rel="stylesheet" href="../style.css">
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+>
 
 <style>
 
-    .staff-page {
-        max-width: 1100px;
-        margin: 90px auto 40px;
-        padding: 0 20px;
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(124,58,237,.14),
+            transparent 30%
+        ),
+        #f5f3f8;
+    color: #291b38;
+}
+
+.topbar {
+    background:
+        linear-gradient(
+            135deg,
+            #21102f,
+            #4c1d70,
+            #7c3aed
+        );
+    color: white;
+    padding: 20px 35px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow:
+        0 8px 30px
+        rgba(40,20,60,.20);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.brand-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background:
+        rgba(255,255,255,.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: 19px;
+}
+
+.brand small {
+    opacity: .7;
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+
+.logout {
+    color: white;
+    font-size: 19px;
+    text-decoration: none;
+    opacity: .9;
+}
+
+.nav {
+    background: white;
+    border-bottom:
+        1px solid #e9e2f2;
+    padding: 0 35px;
+    display: flex;
+    overflow-x: auto;
+}
+
+.nav a {
+    color: #766a80;
+    text-decoration: none;
+    padding: 17px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: .2s;
+}
+
+.nav a:hover {
+    color: #7c3aed;
+}
+
+.nav a.active {
+    color: #7c3aed;
+    border-bottom:
+        3px solid #7c3aed;
+}
+
+.container {
+    max-width: 1250px;
+    margin: auto;
+    padding: 40px 25px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.page-header h2 {
+    margin: 0 0 6px;
+    font-size: 30px;
+}
+
+.page-header p {
+    margin: 0;
+    color: #82758e;
+    font-size: 14px;
+}
+
+.create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    background:
+        linear-gradient(
+            135deg,
+            #6d28a8,
+            #7c3aed
+        );
+    color: white;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 800;
+    box-shadow:
+        0 8px 20px
+        rgba(124,58,237,.20);
+}
+
+.message {
+    background: #dcfce7;
+    color: #166534;
+    padding: 14px 18px;
+    border-radius: 13px;
+    margin-bottom: 25px;
+    font-weight: 700;
+}
+
+.staff-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(320px, 1fr)
+        );
+    gap: 22px;
+}
+
+.staff-card {
+    background: white;
+    border:
+        1px solid #eee8f5;
+    border-radius: 22px;
+    padding: 23px;
+    box-shadow:
+        0 12px 35px
+        rgba(40,20,60,.07);
+    transition:
+        transform .2s,
+        box-shadow .2s;
+}
+
+.staff-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 18px 40px
+        rgba(40,20,60,.11);
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 22px;
+}
+
+.profile-picture {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    object-fit: cover;
+    border:
+        4px solid #ede9fe;
+}
+
+.profile-placeholder {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background:
+        linear-gradient(
+            135deg,
+            #ede9fe,
+            #ddd6fe
+        );
+    color: #7c3aed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 25px;
+    border:
+        4px solid #ede9fe;
+}
+
+.profile-info h3 {
+    margin: 0 0 5px;
+    font-size: 18px;
+}
+
+.profile-info p {
+    margin: 0;
+    color: #83778e;
+    font-size: 12px;
+}
+
+.role-badge {
+    display: inline-block;
+    margin-top: 7px;
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: #f0e9ff;
+    color: #6d28a8;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.activity-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #81758c;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns:
+        repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    background: #faf8fc;
+    border:
+        1px solid #eee8f5;
+    border-radius: 12px;
+    padding: 11px 5px;
+    text-align: center;
+}
+
+.stat strong {
+    display: block;
+    font-size: 19px;
+    color: #3a2948;
+}
+
+.stat span {
+    display: block;
+    margin-top: 3px;
+    font-size: 9px;
+    color: #8b7e95;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.stat.approved strong {
+    color: #16a34a;
+}
+
+.stat.rejected strong {
+    color: #dc2626;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding-top: 17px;
+    border-top:
+        1px solid #eee8f5;
+}
+
+.action-btn {
+    border: 0;
+    padding: 10px 13px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.activity-btn {
+    background: #f1eafd;
+    color: #6d28a8;
+}
+
+.edit-btn {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.edit-btn:hover {
+    background: #c7d2fe;
+}
+
+.delete-btn {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.delete-btn:hover {
+    background: #fecaca;
+}
+
+.delete-form {
+    margin-left: auto;
+}
+
+.empty {
+    background: white;
+    border:
+        1px solid #eee8f5;
+    border-radius: 20px;
+    padding: 60px 20px;
+    text-align: center;
+    color: #81758c;
+}
+
+.empty i {
+    font-size: 45px;
+    color: #c4b5fd;
+    margin-bottom: 15px;
+}
+
+@media(max-width:700px) {
+
+    .topbar {
+        padding: 18px;
     }
 
-    .staff-header {
-        background: linear-gradient(135deg, #1e3a8a, #2563eb);
-        color: white;
-        border-radius: 20px;
-        padding: 30px;
-        margin-bottom: 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
+    .nav {
+        padding: 0 10px;
     }
 
-    .staff-header h1 {
-        margin: 5px 0 8px;
+    .container {
+        padding: 25px 15px;
     }
 
-    .staff-header p {
-        margin: 0;
-        opacity: .9;
-    }
-
-    .staff-header-icon {
-        font-size: 55px;
-    }
-
-    .staff-card {
-        background: white;
-        border-radius: 18px;
-        padding: 25px;
-        margin-bottom: 25px;
-        box-shadow: 0 8px 25px rgba(0,0,0,.08);
-    }
-
-    .staff-card h2 {
-        margin-top: 0;
-    }
-
-    .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
         gap: 18px;
     }
 
-    .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
+    .page-header h2 {
+        font-size: 25px;
     }
 
-    .form-field.full {
-        grid-column: 1 / -1;
+    .stats {
+        grid-template-columns:
+            repeat(2, 1fr);
     }
 
-    .form-field label {
-        font-weight: 600;
-    }
-
-    .form-field input {
+    .delete-form {
+        margin-left: 0;
         width: 100%;
-        box-sizing: border-box;
-        padding: 13px 15px;
-        border: 1px solid #d1d5db;
-        border-radius: 10px;
-        font-size: 15px;
     }
 
-    .form-field input:focus {
-        outline: none;
-        border-color: #2563eb;
-    }
-
-    .add-staff-button {
-        margin-top: 18px;
-        border: none;
-        background: #2563eb;
-        color: white;
-        padding: 13px 22px;
-        border-radius: 10px;
-        cursor: pointer;
-        font-size: 15px;
-        font-weight: 600;
-    }
-
-    .add-staff-button:hover {
-        background: #1d4ed8;
-    }
-
-    .message {
-        padding: 14px 16px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        font-weight: 600;
-    }
-
-    .message.success {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .message.error {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .staff-table-wrapper {
-        overflow-x: auto;
-    }
-
-    .staff-table {
+    .delete-form .action-btn {
         width: 100%;
-        border-collapse: collapse;
+        justify-content: center;
     }
-
-    .staff-table th,
-    .staff-table td {
-        padding: 15px 12px;
-        text-align: left;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .staff-table th {
-        background: #f8fafc;
-        font-size: 14px;
-    }
-
-    .staff-role {
-        display: inline-block;
-        padding: 5px 10px;
-        border-radius: 999px;
-        background: #dbeafe;
-        color: #1d4ed8;
-        font-size: 12px;
-        font-weight: 700;
-    }
-
-    .delete-button {
-        border: none;
-        background: #fee2e2;
-        color: #b91c1c;
-        padding: 8px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-    }
-
-    .delete-button:hover {
-        background: #fecaca;
-    }
-
-    .empty-staff {
-        text-align: center;
-        padding: 35px;
-        color: #6b7280;
-    }
-
-    @media (max-width: 700px) {
-
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .form-field.full {
-            grid-column: auto;
-        }
-
-        .staff-header {
-            padding: 25px;
-        }
-
-        .staff-header-icon {
-            display: none;
-        }
-
-    }
+}
 
 </style>
-```
 
 </head>
 
 <body>
 
-<?php include __DIR__ . "/../navbar.php"; ?>
+<header class="topbar">
 
-<main class="staff-page">
+    <div class="brand">
 
-```
-<!-- HEADER -->
+        <div class="brand-icon">
+            <i class="fa-solid fa-crown"></i>
+        </div>
 
-<section class="staff-header">
+        <div>
 
-    <div>
+            <h1>
+                Admin Control Center
+            </h1>
 
-        <small>
-            ADMINISTRATION
-        </small>
-
-        <h1>
-            Manage Staff 👥
-        </h1>
-
-        <p>
-            Create and manage staff accounts for the Lost and Found System.
-        </p>
-
-    </div>
-
-    <div class="staff-header-icon">
-        👥
-    </div>
-
-</section>
-
-
-<!-- MESSAGE -->
-
-<?php if ($message !== ""): ?>
-
-    <div class="message <?php echo htmlspecialchars($messageType); ?>">
-
-        <?php echo htmlspecialchars($message); ?>
-
-    </div>
-
-<?php endif; ?>
-
-
-<!-- ADD STAFF -->
-
-<section class="staff-card">
-
-    <h2>
-        Add New Staff
-    </h2>
-
-    <p>
-        Create an account that can be used by staff members.
-    </p>
-
-
-    <form method="POST">
-
-        <input
-            type="hidden"
-            name="action"
-            value="add_staff"
-        >
-
-        <div class="form-grid">
-
-
-            <div class="form-field">
-
-                <label for="name">
-                    Full Name
-                </label>
-
-                <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    placeholder="Enter staff name"
-                    required
-                >
-
-            </div>
-
-
-            <div class="form-field">
-
-                <label for="email">
-                    Email
-                </label>
-
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    placeholder="staff@example.com"
-                    required
-                >
-
-            </div>
-
-
-            <div class="form-field">
-
-                <label for="password">
-                    Password
-                </label>
-
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    placeholder="Minimum 6 characters"
-                    minlength="6"
-                    required
-                >
-
-            </div>
-
+            <small>
+                STAFF MANAGEMENT
+            </small>
 
         </div>
 
+    </div>
 
-        <button
-            type="submit"
-            class="add-staff-button"
+    <a
+        href="../logout.php"
+        class="logout"
+        title="Logout"
+    >
+
+        <i class="fa-solid fa-right-from-bracket"></i>
+
+    </a>
+
+</header>
+
+<nav class="nav">
+
+    <a href="dashboard.php">
+        <i class="fa-solid fa-chart-line"></i>
+        Dashboard
+    </a>
+
+    <a href="reports.php">
+        <i class="fa-solid fa-file-lines"></i>
+        Reports
+    </a>
+
+    <a href="claim.php">
+        <i class="fa-solid fa-hand-holding"></i>
+        Claims
+    </a>
+
+    <a
+        href="manage_staff.php"
+        class="active"
+    >
+        <i class="fa-solid fa-users-gear"></i>
+        Staff
+    </a>
+
+    <a href="create_staff.php">
+        <i class="fa-solid fa-user-plus"></i>
+        Create Staff
+    </a>
+
+</nav>
+
+<main class="container">
+
+    <div class="page-header">
+
+        <div>
+
+            <h2>
+                Staff Management
+            </h2>
+
+            <p>
+                Manage staff accounts, activity and access.
+            </p>
+
+        </div>
+
+        <a
+            href="create_staff.php"
+            class="create-btn"
         >
-            + Create Staff Account
-        </button>
 
-    </form>
+            <i class="fa-solid fa-user-plus"></i>
 
-</section>
+            Create Staff
 
-
-<!-- STAFF LIST -->
-
-<section class="staff-card">
-
-    <h2>
-        Staff Accounts
-    </h2>
-
-    <p>
-        Staff members currently registered in the system.
-    </p>
-
-
-    <div class="staff-table-wrapper">
-
-        <table class="staff-table">
-
-            <thead>
-
-                <tr>
-
-                    <th>
-                        Name
-                    </th>
-
-                    <th>
-                        Email
-                    </th>
-
-                    <th>
-                        Role
-                    </th>
-
-                    <th>
-                        Action
-                    </th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-            <?php
-
-            $hasStaff = false;
-
-            foreach ($staffMembers as $staff):
-
-                $hasStaff = true;
-
-            ?>
-
-                <tr>
-
-                    <td>
-                        <?php echo htmlspecialchars(
-                            $staff["name"] ?? "Unnamed Staff"
-                        ); ?>
-                    </td>
-
-                    <td>
-                        <?php echo htmlspecialchars(
-                            $staff["email"] ?? "No email"
-                        ); ?>
-                    </td>
-
-                    <td>
-
-                        <span class="staff-role">
-                            STAFF
-                        </span>
-
-                    </td>
-
-                    <td>
-
-                        <form
-                            method="POST"
-                            onsubmit="return confirm('Are you sure you want to delete this staff account?');"
-                        >
-
-                            <input
-                                type="hidden"
-                                name="action"
-                                value="delete_staff"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="staff_id"
-                                value="<?php echo htmlspecialchars(
-                                    (string) $staff["_id"]
-                                ); ?>"
-                            >
-
-                            <button
-                                type="submit"
-                                class="delete-button"
-                            >
-                                Delete
-                            </button>
-
-                        </form>
-
-                    </td>
-
-                </tr>
-
-            <?php endforeach; ?>
-
-
-            <?php if (!$hasStaff): ?>
-
-                <tr>
-
-                    <td
-                        colspan="4"
-                        class="empty-staff"
-                    >
-
-                        👥 No staff accounts have been created yet.
-
-                    </td>
-
-                </tr>
-
-            <?php endif; ?>
-
-            </tbody>
-
-        </table>
+        </a>
 
     </div>
 
-</section>
-```
+    <?php if ($message !== ""): ?>
+
+        <div class="message">
+
+            <i class="fa-solid fa-circle-check"></i>
+
+            <?php
+            echo htmlspecialchars($message);
+            ?>
+
+        </div>
+
+    <?php endif; ?>
+
+    <div class="staff-grid">
+
+    <?php
+
+    $hasStaff = false;
+
+    foreach ($staffUsers as $staff):
+
+        $hasStaff = true;
+
+        $staffId =
+            (string)$staff["_id"];
+
+        $profileImage =
+            getAdminImageUrl(
+                $staff["profile_picture"] ?? ""
+            );
+
+
+        $approvedReports =
+            $reports->countDocuments([
+                "reviewed_by" => $staffId,
+                "status" => "approved"
+            ]);
+
+        $rejectedReports =
+            $reports->countDocuments([
+                "reviewed_by" => $staffId,
+                "status" => "rejected"
+            ]);
+
+        $approvedClaims =
+            $claims->countDocuments([
+                "reviewed_by" => $staffId,
+                "status" => "approved"
+            ]);
+
+        $rejectedClaims =
+            $claims->countDocuments([
+                "reviewed_by" => $staffId,
+                "status" => "rejected"
+            ]);
+
+    ?>
+
+        <div class="staff-card">
+
+            <div class="profile">
+
+                <?php if ($profileImage !== ""): ?>
+
+                    <img
+                        src="<?php
+                            echo htmlspecialchars(
+                                $profileImage
+                            );
+                        ?>"
+                        class="profile-picture"
+                        alt="Staff profile"
+                    >
+
+                <?php else: ?>
+
+                    <div class="profile-placeholder">
+
+                        <i class="fa-solid fa-user"></i>
+
+                    </div>
+
+                <?php endif; ?>
+
+                <div class="profile-info">
+
+                    <h3>
+
+                        <?php
+                        echo htmlspecialchars(
+                            $staff["name"] ?? "Staff"
+                        );
+                        ?>
+
+                    </h3>
+
+                    <p>
+
+                        <i class="fa-solid fa-envelope"></i>
+
+                        <?php
+                        echo htmlspecialchars(
+                            $staff["email"] ?? ""
+                        );
+                        ?>
+
+                    </p>
+
+                    <span class="role-badge">
+
+                        <i class="fa-solid fa-user-shield"></i>
+
+                        Staff
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            <div class="activity-title">
+
+                REVIEW ACTIVITY
+
+            </div>
+
+            <div class="stats">
+
+                <div class="stat approved">
+
+                    <strong>
+                        <?php echo $approvedReports; ?>
+                    </strong>
+
+                    <span>
+                        Approved Reports
+                    </span>
+
+                </div>
+
+                <div class="stat rejected">
+
+                    <strong>
+                        <?php echo $rejectedReports; ?>
+                    </strong>
+
+                    <span>
+                        Rejected Reports
+                    </span>
+
+                </div>
+
+                <div class="stat approved">
+
+                    <strong>
+                        <?php echo $approvedClaims; ?>
+                    </strong>
+
+                    <span>
+                        Approved Claims
+                    </span>
+
+                </div>
+
+                <div class="stat rejected">
+
+                    <strong>
+                        <?php echo $rejectedClaims; ?>
+                    </strong>
+
+                    <span>
+                        Rejected Claims
+                    </span>
+
+                </div>
+
+            </div>
+
+            <div class="card-actions">
+
+                <a
+                    href="edit_staff.php?id=<?php
+                        echo urlencode($staffId);
+                    ?>"
+                    class="action-btn edit-btn"
+                >
+
+                    <i class="fa-solid fa-pen-to-square"></i>
+
+                    Edit Staff
+
+                </a>
+
+                <a
+                    href="reports.php?staff=<?php
+                        echo urlencode($staffId);
+                    ?>"
+                    class="action-btn activity-btn"
+                >
+
+                    <i class="fa-solid fa-chart-simple"></i>
+
+                    Activity
+
+                </a>
+
+                <form
+                    method="POST"
+                    class="delete-form"
+                >
+
+                    <input
+                        type="hidden"
+                        name="staff_id"
+                        value="<?php
+                            echo htmlspecialchars(
+                                $staffId
+                            );
+                        ?>"
+                    >
+
+                    <button
+                        type="submit"
+                        class="action-btn delete-btn"
+                        onclick="return confirm(
+                            'Are you sure you want to delete this staff account?'
+                        );"
+                    >
+
+                        <i class="fa-solid fa-trash"></i>
+
+                        Delete
+
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    <?php endforeach; ?>
+
+    </div>
+
+    <?php if (!$hasStaff): ?>
+
+        <div class="empty">
+
+            <i class="fa-solid fa-users"></i>
+
+            <h3>
+                No Staff Accounts
+            </h3>
+
+            <p>
+                You haven't created any staff accounts yet.
+            </p>
+
+            <br>
+
+            <a
+                href="create_staff.php"
+                class="create-btn"
+            >
+
+                <i class="fa-solid fa-user-plus"></i>
+
+                Create First Staff
+
+            </a>
+
+        </div>
+
+    <?php endif; ?>
 
 </main>
 

@@ -1,5 +1,4 @@
 <?php
-
 session_start();
 
 if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "staff") {
@@ -13,18 +12,18 @@ use Zayncaleb\Lostandfoundsystem\Database;
 use MongoDB\BSON\ObjectId;
 
 $db = new Database();
-
-$database = $db->getDatabase();
-
-$claims = $database->claims;
-$reports = $database->reports;
+$claims = $db->getDatabase()->claims;
+$reports = $db->getDatabase()->reports;
 
 
-/* =========================================================
-   IMAGE PATH HELPER
-   ========================================================= */
-
-function getImageUrl($imagePath)
+/*
+|--------------------------------------------------------------------------
+| IMAGE URL HELPER
+|--------------------------------------------------------------------------
+| Cloudinary URLs are already complete URLs.
+| Old local images still need ../
+*/
+function getStaffImageUrl($imagePath): string
 {
     if (empty($imagePath)) {
         return "";
@@ -32,74 +31,51 @@ function getImageUrl($imagePath)
 
     $imagePath = trim((string)$imagePath);
 
-    /*
-     * Cloudinary / external image
-     *
-     * Example:
-     * https://res.cloudinary.com/...
-     */
-    if (
-        filter_var($imagePath, FILTER_VALIDATE_URL) &&
-        (
-            str_starts_with($imagePath, "http://") ||
-            str_starts_with($imagePath, "https://")
-        )
-    ) {
+    // Cloudinary / external image
+    if (preg_match('/^https?:\/\//i', $imagePath)) {
         return $imagePath;
     }
 
-    /*
-     * Local image path
-     *
-     * Example:
-     * uploads/items/photo.jpg
-     */
+    // Old local image
     return "../" . ltrim($imagePath, "/\\");
 }
 
 
-/* =========================================================
-   APPROVE / REJECT CLAIM
-   ========================================================= */
-
+/*
+|--------------------------------------------------------------------------
+| APPROVE / REJECT CLAIM
+|--------------------------------------------------------------------------
+*/
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $claimId = $_POST["claim_id"] ?? "";
     $action = $_POST["action"] ?? "";
+    $claimId = $_POST["claim_id"] ?? "";
 
     if (
-        $claimId !== "" &&
-        ($action === "approve" || $action === "reject")
+        in_array($action, ["approve", "reject"], true) &&
+        !empty($claimId) &&
+        preg_match('/^[a-f0-9]{24}$/i', $claimId)
     ) {
 
         try {
+            $objectId = new ObjectId($claimId);
 
-            $claim = $claims->findOne([
-                "_id" => new ObjectId($claimId)
-            ]);
+            $newStatus = ($action === "approve")
+                ? "approved"
+                : "rejected";
 
-            if ($claim) {
-
-                $newStatus =
-                    $action === "approve"
-                    ? "approved"
-                    : "rejected";
-
-                $claims->updateOne(
-                    [
-                        "_id" => $claim["_id"]
-                    ],
-                    [
-                        '$set' => [
-                            "status" => $newStatus
-                        ]
+            $claims->updateOne(
+                ["_id" => $objectId],
+                [
+                    '$set' => [
+                        "status" => $newStatus,
+                        "updated_at" => new MongoDB\BSON\UTCDateTime()
                     ]
-                );
-            }
+                ]
+            );
 
         } catch (Exception $e) {
-
-            // Invalid claim ID
+            // Ignore invalid IDs
         }
     }
 
@@ -108,11 +84,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 
-/* =========================================================
-   FILTER
-   ========================================================= */
-
-$filter = $_GET["status"] ?? "all";
+/*
+|--------------------------------------------------------------------------
+| FILTER
+|--------------------------------------------------------------------------
+*/
+$filter = $_GET["filter"] ?? "all";
 
 $allowedFilters = [
     "all",
@@ -126,31 +103,35 @@ if (!in_array($filter, $allowedFilters, true)) {
 }
 
 
-/* =========================================================
-   CLAIM QUERY
-   ========================================================= */
-
-$claimQuery = [];
+/*
+|--------------------------------------------------------------------------
+| GET CLAIMS
+|--------------------------------------------------------------------------
+*/
+$query = [];
 
 if ($filter !== "all") {
-    $claimQuery["status"] = $filter;
+    $query["status"] = $filter;
 }
 
-$allClaims = $claims->find(
-    $claimQuery,
-    [
-        "sort" => [
-            "created_at" => -1
+$allClaims = $claims
+    ->find(
+        $query,
+        [
+            "sort" => [
+                "created_at" => -1
+            ]
         ]
-    ]
-);
+    )
+    ->toArray();
 
 
-/* =========================================================
-   COUNTS
-   ========================================================= */
-
-$allCount = $claims->countDocuments([]);
+/*
+|--------------------------------------------------------------------------
+| COUNTS
+|--------------------------------------------------------------------------
+*/
+$totalCount = $claims->countDocuments([]);
 
 $pendingCount = $claims->countDocuments([
     "status" => "pending"
@@ -165,113 +146,81 @@ $rejectedCount = $claims->countDocuments([
 ]);
 
 
-/* =========================================================
-   PREPARE CLAIM DATA FOR MODAL
-   ========================================================= */
-
+/*
+|--------------------------------------------------------------------------
+| CLAIM DATA FOR MODALS
+|--------------------------------------------------------------------------
+*/
 $claimData = [];
 
-foreach (
-    $claims->find(
-        [],
-        [
-            "sort" => [
-                "created_at" => -1
-            ]
-        ]
-    ) as $claim
-) {
+foreach ($allClaims as $claim) {
 
     $id = (string)$claim["_id"];
 
     $item = null;
 
+    if (!empty($claim["item_id"])) {
 
-    try {
+        try {
 
-        if (!empty($claim["item_id"])) {
+            $itemId = $claim["item_id"];
 
-            $itemId = (string)$claim["item_id"];
+            if ($itemId instanceof ObjectId) {
 
-            /*
-             * Make sure the ID is a valid MongoDB ObjectId.
-             */
-            if (preg_match('/^[a-f0-9]{24}$/i', $itemId)) {
+                $item = $reports->findOne([
+                    "_id" => $itemId
+                ]);
+
+            } elseif (
+                is_string($itemId) &&
+                preg_match('/^[a-f0-9]{24}$/i', $itemId)
+            ) {
 
                 $item = $reports->findOne([
                     "_id" => new ObjectId($itemId)
                 ]);
             }
+
+        } catch (Exception $e) {
+            $item = null;
         }
-
-    } catch (Exception $e) {
-
-        $item = null;
     }
 
 
     /*
-     * =====================================================
-     * IMAGE FIX
-     * =====================================================
-     *
-     * If image_path is a Cloudinary URL:
-     *
-     * https://res.cloudinary.com/...
-     *
-     * keep it exactly as it is.
-     *
-     * If it is a local path:
-     *
-     * uploads/...
-     *
-     * add ../
-     */
-
+    |--------------------------------------------------------------------------
+    | CLOUDINARY / LOCAL IMAGE
+    |--------------------------------------------------------------------------
+    */
     $photoPath = "";
 
-    if (
-        $item &&
-        !empty($item["image_path"])
-    ) {
-
-        $photoPath = getImageUrl(
-            $item["image_path"]
-        );
+    if ($item && !empty($item["image_path"])) {
+        $photoPath = getStaffImageUrl($item["image_path"]);
     }
 
 
     $claimData[$id] = [
 
         "itemName" =>
-            $item["item_name"]
-            ?? "Item Not Found",
+            $item["item_name"] ?? "Item Not Found",
 
         "description" =>
-            $item["description"]
-            ?? "No description.",
+            $item["description"] ?? "No description.",
 
         "student" =>
-            $claim["student_name"]
-            ?? "Unknown Student",
+            $claim["student_name"] ?? "Unknown Student",
 
         "location" =>
-            $item["location"]
-            ?? "Not specified",
+            $item["location"] ?? "Not specified",
 
         "reason" =>
-            $claim["reason"]
-            ?? "No reason provided.",
+            $claim["reason"] ?? "No reason provided.",
 
         "status" =>
-            ucfirst(
-                $claim["status"]
-                ?? "pending"
-            ),
+            ucfirst($claim["status"] ?? "pending"),
 
         "rawStatus" =>
-            $claim["status"]
-            ?? "pending",
+            $claim["status"] ?? "pending",
 
         "photo" =>
             $photoPath
@@ -279,9 +228,7 @@ foreach (
 }
 
 ?>
-
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -293,728 +240,1592 @@ foreach (
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Manage Claims
-    </title>
+    <title>Staff Claims</title>
 
-    <link
-        rel="stylesheet"
-        href="staff.css"
-    >
 
     <style>
 
-        .claim-filter-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 22px;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        .claim-filter-tab {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 15px;
-            border-radius: 10px;
-            text-decoration: none;
-            background: #f1f4f2;
-            color: #56635c;
-            font-size: 11px;
-            font-weight: 800;
-            border: 1px solid #e1e7e3;
-            transition: .2s;
+        body {
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background: #f4f7fb;
+            color: #1f2937;
         }
 
-        .claim-filter-tab:hover {
-            background: #e6ece8;
-            transform: translateY(-1px);
-        }
 
-        .claim-filter-tab.active {
-            background: #173b2b;
+        /* =========================================================
+           SIDEBAR
+        ========================================================= */
+
+        .sidebar {
+            position: fixed;
+
+            left: 0;
+            top: 0;
+
+            width: 250px;
+            height: 100vh;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #0f172a 0%,
+                    #172554 100%
+                );
+
             color: white;
-            border-color: #173b2b;
+
+            padding: 25px 18px;
+
+            box-shadow:
+                4px 0 20px rgba(15, 23, 42, 0.12);
+
+            z-index: 100;
         }
 
-        .claim-filter-tab.approved.active {
-            background: #23734a;
-            border-color: #23734a;
-        }
 
-        .claim-filter-tab.rejected.active {
-            background: #a33b3b;
-            border-color: #a33b3b;
-        }
-
-        .claim-filter-count {
-            min-width: 20px;
-            height: 20px;
-            display: inline-flex;
+        .brand {
+            display: flex;
             align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: rgba(255,255,255,.18);
-            font-size: 9px;
+
+            gap: 12px;
+
+            padding: 5px 10px 30px;
         }
 
-        .claim-filter-tab:not(.active) .claim-filter-count {
-            background: #dfe7e2;
-            color: #56635c;
-        }
 
-        .staff-large-photo img {
-            width: 100%;
-            max-height: 360px;
-            object-fit: contain;
-            border-radius: 14px;
-            display: block;
-            background: #f2f5f3;
-        }
+        .brand-icon {
+            width: 42px;
+            height: 42px;
 
-        .staff-item-photo img {
-            width: 48px;
-            height: 48px;
-            object-fit: cover;
-            border-radius: 10px;
-            display: block;
-        }
+            border-radius: 12px;
 
-        .staff-no-photo {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
+            background: #2563eb;
+
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #eef2ef;
+
+            font-size: 21px;
+        }
+
+
+        .brand-text h2 {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+
+        .brand-text p {
+            font-size: 11px;
+            color: #94a3b8;
+
+            margin-top: 2px;
+        }
+
+
+        .nav-section {
+            margin-top: 10px;
+        }
+
+
+        .nav-label {
+            font-size: 10px;
+
+            color: #64748b;
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            padding:
+                0 12px
+                10px;
+        }
+
+
+        .nav-link {
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            padding: 12px;
+
+            border-radius: 10px;
+
+            color: #cbd5e1;
+
+            text-decoration: none;
+
+            font-size: 14px;
+
+            margin-bottom: 5px;
+
+            transition: 0.2s;
+        }
+
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.07);
+            color: white;
+        }
+
+
+        .nav-link.active {
+            background: #2563eb;
+            color: white;
+
+            box-shadow:
+                0 5px 15px rgba(37,99,235,0.25);
+        }
+
+
+        .nav-icon {
+            width: 22px;
+
+            text-align: center;
+
+            font-size: 17px;
+        }
+
+
+        .sidebar-bottom {
+            position: absolute;
+
+            bottom: 25px;
+
+            left: 18px;
+            right: 18px;
+        }
+
+
+        .account-link {
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            color: #cbd5e1;
+
+            text-decoration: none;
+
+            padding: 12px;
+
+            border-radius: 10px;
+
+            font-size: 13px;
+        }
+
+
+        .account-link:hover {
+            background: rgba(255,255,255,0.07);
+        }
+
+
+        /* =========================================================
+           MAIN
+        ========================================================= */
+
+        .main {
+            margin-left: 250px;
+
+            min-height: 100vh;
+
+            padding: 35px 40px;
+        }
+
+
+        .page-header {
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            margin-bottom: 30px;
+        }
+
+
+        .page-title h1 {
+            font-size: 27px;
+
+            color: #0f172a;
+
+            margin-bottom: 6px;
+        }
+
+
+        .page-title p {
+            color: #64748b;
+
+            font-size: 14px;
+        }
+
+
+        /* =========================================================
+           STATS
+        ========================================================= */
+
+        .stats {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 18px;
+
+            margin-bottom: 28px;
+        }
+
+
+        .stat-card {
+            background: white;
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            border:
+                1px solid #e5e7eb;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 15px;
+
+            box-shadow:
+                0 3px 12px
+                rgba(15,23,42,0.04);
+        }
+
+
+        .stat-icon {
+            width: 46px;
+            height: 46px;
+
+            border-radius: 12px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            font-size: 20px;
+
+            background: #eff6ff;
+        }
+
+
+        .stat-number {
+            font-size: 23px;
+
+            font-weight: 700;
+
+            color: #0f172a;
+        }
+
+
+        .stat-label {
+            color: #64748b;
+
+            font-size: 12px;
+
+            margin-top: 2px;
+        }
+
+
+        /* =========================================================
+           FILTERS
+        ========================================================= */
+
+        .filter-card {
+            background: white;
+
+            border: 1px solid #e5e7eb;
+
+            border-radius: 15px;
+
+            padding: 8px;
+
+            display: flex;
+
+            gap: 5px;
+
+            margin-bottom: 18px;
+        }
+
+
+        .filter-link {
+            padding:
+                10px
+                18px;
+
+            border-radius: 9px;
+
+            text-decoration: none;
+
+            color: #64748b;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            transition: 0.2s;
+        }
+
+
+        .filter-link:hover {
+            background: #f1f5f9;
+        }
+
+
+        .filter-link.active {
+            background: #2563eb;
+
+            color: white;
+        }
+
+
+        /* =========================================================
+           TABLE
+        ========================================================= */
+
+        .table-card {
+            background: white;
+
+            border:
+                1px solid #e5e7eb;
+
+            border-radius: 16px;
+
+            overflow: hidden;
+
+            box-shadow:
+                0 4px 15px
+                rgba(15,23,42,0.04);
+        }
+
+
+        .table-header {
+            padding: 20px 22px;
+
+            border-bottom:
+                1px solid #e5e7eb;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+        }
+
+
+        .table-header h2 {
+            font-size: 16px;
+
+            color: #0f172a;
+        }
+
+
+        .table-header span {
+            color: #94a3b8;
+
+            font-size: 12px;
+        }
+
+
+        table {
+            width: 100%;
+
+            border-collapse: collapse;
+        }
+
+
+        th {
+            text-align: left;
+
+            padding:
+                13px
+                18px;
+
+            background: #f8fafc;
+
+            color: #64748b;
+
+            font-size: 11px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+        }
+
+
+        td {
+            padding:
+                15px
+                18px;
+
+            border-top:
+                1px solid #eef2f7;
+
+            font-size: 13px;
+
+            vertical-align: middle;
+        }
+
+
+        tr:hover td {
+            background: #fafcff;
+        }
+
+
+        .item-cell {
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+        }
+
+
+        .item-image {
+            width: 48px;
+            height: 48px;
+
+            border-radius: 10px;
+
+            overflow: hidden;
+
+            background: #f1f5f9;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            flex-shrink: 0;
+        }
+
+
+        .item-image img {
+            width: 100%;
+            height: 100%;
+
+            object-fit: cover;
+        }
+
+
+        .no-photo {
+            font-size: 20px;
+        }
+
+
+        .item-name {
+            font-weight: 600;
+
+            color: #0f172a;
+        }
+
+
+        .item-sub {
+            font-size: 11px;
+
+            color: #94a3b8;
+
+            margin-top: 3px;
+        }
+
+
+        .student-name {
+            font-weight: 600;
+
+            color: #334155;
+        }
+
+
+        .location {
+            color: #64748b;
+        }
+
+
+        .status {
+            display: inline-flex;
+
+            align-items: center;
+
+            padding:
+                5px
+                10px;
+
+            border-radius: 20px;
+
+            font-size: 11px;
+
+            font-weight: 600;
+        }
+
+
+        .status.pending {
+            background: #fff7ed;
+
+            color: #c2410c;
+        }
+
+
+        .status.approved {
+            background: #ecfdf5;
+
+            color: #047857;
+        }
+
+
+        .status.rejected {
+            background: #fef2f2;
+
+            color: #b91c1c;
+        }
+
+
+        .actions {
+            display: flex;
+
+            gap: 6px;
+        }
+
+
+        .btn {
+            border: none;
+
+            cursor: pointer;
+
+            border-radius: 8px;
+
+            padding:
+                8px
+                11px;
+
+            font-size: 11px;
+
+            font-weight: 600;
+
+            transition: 0.2s;
+        }
+
+
+        .btn-view {
+            background: #eff6ff;
+
+            color: #2563eb;
+        }
+
+
+        .btn-view:hover {
+            background: #dbeafe;
+        }
+
+
+        .btn-approve {
+            background: #ecfdf5;
+
+            color: #047857;
+        }
+
+
+        .btn-approve:hover {
+            background: #d1fae5;
+        }
+
+
+        .btn-reject {
+            background: #fef2f2;
+
+            color: #dc2626;
+        }
+
+
+        .btn-reject:hover {
+            background: #fee2e2;
+        }
+
+
+        .empty {
+            padding: 70px 20px;
+
+            text-align: center;
+
+            color: #94a3b8;
+        }
+
+
+        .empty-icon {
+            font-size: 42px;
+
+            margin-bottom: 12px;
+        }
+
+
+        .empty h3 {
+            color: #475569;
+
+            font-size: 16px;
+
+            margin-bottom: 5px;
+        }
+
+
+        .empty p {
+            font-size: 13px;
+        }
+
+
+        /* =========================================================
+           MODAL
+        ========================================================= */
+
+        .modal-overlay {
+            display: none;
+
+            position: fixed;
+
+            inset: 0;
+
+            background:
+                rgba(15,23,42,0.60);
+
+            z-index: 1000;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 20px;
+        }
+
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+
+        .modal {
+            width: 100%;
+
+            max-width: 720px;
+
+            max-height: 90vh;
+
+            overflow-y: auto;
+
+            background: white;
+
+            border-radius: 18px;
+
+            box-shadow:
+                0 25px 70px
+                rgba(0,0,0,0.25);
+
+            animation:
+                modalIn 0.2s ease;
+        }
+
+
+        @keyframes modalIn {
+
+            from {
+                opacity: 0;
+
+                transform:
+                    translateY(10px)
+                    scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+
+                transform:
+                    translateY(0)
+                    scale(1);
+            }
+
+        }
+
+
+        .modal-header {
+            padding:
+                20px 24px;
+
+            border-bottom:
+                1px solid #e5e7eb;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+        }
+
+
+        .modal-header h2 {
+            font-size: 18px;
+
+            color: #0f172a;
+        }
+
+
+        .close-btn {
+            border: none;
+
+            background: #f1f5f9;
+
+            width: 34px;
+            height: 34px;
+
+            border-radius: 50%;
+
+            cursor: pointer;
+
+            font-size: 18px;
+
+            color: #64748b;
+        }
+
+
+        .close-btn:hover {
+            background: #e2e8f0;
+        }
+
+
+        .modal-body {
+            padding: 24px;
+        }
+
+
+        .photo-box {
+            width: 100%;
+
+            height: 260px;
+
+            background: #f8fafc;
+
+            border-radius: 14px;
+
+            overflow: hidden;
+
+            margin-bottom: 22px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+        }
+
+
+        .photo-box img {
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
+        }
+
+
+        .staff-no-large-photo {
+            color: #94a3b8;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            gap: 8px;
+
+            font-size: 13px;
+        }
+
+
+        .staff-no-large-photo:first-letter {
+            font-size: 35px;
+        }
+
+
+        .details {
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, 1fr);
+
+            gap: 16px;
+        }
+
+
+        .detail {
+            background: #f8fafc;
+
+            border-radius: 10px;
+
+            padding: 13px;
+        }
+
+
+        .detail.full {
+            grid-column: 1 / -1;
+        }
+
+
+        .detail-label {
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+            color: #94a3b8;
+
+            margin-bottom: 5px;
+        }
+
+
+        .detail-value {
+            font-size: 13px;
+
+            color: #334155;
+
+            line-height: 1.5;
+        }
+
+
+        .modal-footer {
+            padding:
+                18px 24px;
+
+            border-top:
+                1px solid #e5e7eb;
+
+            display: flex;
+
+            justify-content: flex-end;
+
+            gap: 8px;
+        }
+
+
+        /* =========================================================
+           RESPONSIVE
+        ========================================================= */
+
+        @media (max-width: 1000px) {
+
+            .stats {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+            .main {
+                padding:
+                    25px;
+            }
+
+            .sidebar {
+                width: 220px;
+            }
+
+            .main {
+                margin-left: 220px;
+            }
+
+        }
+
+
+        @media (max-width: 800px) {
+
+            .sidebar {
+                position: relative;
+
+                width: 100%;
+
+                height: auto;
+            }
+
+            .sidebar-bottom {
+                position: static;
+
+                margin-top: 20px;
+            }
+
+            .main {
+                margin-left: 0;
+            }
+
+            table {
+                min-width: 850px;
+            }
+
+            .table-card {
+                overflow-x: auto;
+            }
+
+        }
+
+
+        @media (max-width: 600px) {
+
+            .stats {
+                grid-template-columns:
+                    1fr;
+            }
+
+            .details {
+                grid-template-columns:
+                    1fr;
+            }
+
+            .detail.full {
+                grid-column: auto;
+            }
+
         }
 
     </style>
 
 </head>
 
-<body class="staff-body">
+
+<body>
 
 
-<div class="staff-layout">
+<!-- =============================================================
+     SIDEBAR
+============================================================= -->
+
+<aside class="sidebar">
+
+    <div class="brand">
+
+        <div class="brand-icon">
+            🔎
+        </div>
+
+        <div class="brand-text">
+            <h2>Lost & Found</h2>
+            <p>Staff Management</p>
+        </div>
+
+    </div>
 
 
-    <!-- =====================================================
-         SIDEBAR
-         ===================================================== -->
+    <div class="nav-section">
 
-    <aside class="staff-sidebar">
+        <div class="nav-label">
+            Management
+        </div>
 
-        <div class="staff-brand">
 
-            <div class="staff-brand-icon">
-                🛠️
+        <a
+            href="dashboard.php"
+            class="nav-link"
+        >
+            <span class="nav-icon">📊</span>
+            Dashboard
+        </a>
+
+
+        <a
+            href="reports.php"
+            class="nav-link"
+        >
+            <span class="nav-icon">📦</span>
+            Reports
+        </a>
+
+
+        <a
+            href="claims.php"
+            class="nav-link active"
+        >
+            <span class="nav-icon">📋</span>
+            Claims
+        </a>
+
+    </div>
+
+
+    <div class="sidebar-bottom">
+
+        <a
+            href="account.php"
+            class="account-link"
+        >
+            <span>👤</span>
+            Staff Account
+        </a>
+
+
+        <a
+            href="../logout.php"
+            class="account-link"
+        >
+            <span>↪</span>
+            Sign Out
+        </a>
+
+    </div>
+
+</aside>
+
+
+<!-- =============================================================
+     MAIN
+============================================================= -->
+
+<main class="main">
+
+
+    <div class="page-header">
+
+        <div class="page-title">
+
+            <h1>Claim Management</h1>
+
+            <p>
+                Review and manage student claims for reported items.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         STATS
+    ========================================================= -->
+
+    <div class="stats">
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon">
+                📋
             </div>
 
             <div>
 
-                <h2>
-                    Lost & Found
-                </h2>
-
-                <span>
-                    Staff Management
-                </span>
-
-            </div>
-
-        </div>
-
-
-        <nav class="staff-nav">
-
-            <div class="staff-nav-label">
-                Workspace
-            </div>
-
-
-            <a href="dashboard.php">
-
-                <span class="staff-nav-icon">
-                    ▦
-                </span>
-
-                Dashboard
-
-            </a>
-
-
-            <a href="reports.php">
-
-                <span class="staff-nav-icon">
-                    📋
-                </span>
-
-                Reports
-
-            </a>
-
-
-            <a
-                href="claims.php"
-                class="active"
-            >
-
-                <span class="staff-nav-icon">
-                    📨
-                </span>
-
-                Claims
-
-            </a>
-
-        </nav>
-
-
-        <div class="staff-user">
-
-            <div class="staff-user-top">
-
-                <div class="staff-avatar">
-
-                    <?php
-                    echo strtoupper(
-                        substr(
-                            $_SESSION["name"],
-                            0,
-                            1
-                        )
-                    );
-                    ?>
-
+                <div class="stat-number">
+                    <?php echo $totalCount; ?>
                 </div>
 
-                <div>
-
-                    <strong>
-                        <?php
-                        echo htmlspecialchars(
-                            $_SESSION["name"]
-                        );
-                        ?>
-                    </strong>
-
-                    <small>
-                        Staff Account
-                    </small>
-
+                <div class="stat-label">
+                    Total Claims
                 </div>
 
             </div>
 
-
-            <a
-                href="../logout.php"
-                class="staff-logout"
-            >
-                Sign Out
-            </a>
-
         </div>
 
-    </aside>
 
+        <div class="stat-card">
 
-    <!-- =====================================================
-         MAIN
-         ===================================================== -->
-
-    <main class="staff-main">
-
-
-        <div class="staff-topbar">
-
-            <div class="staff-breadcrumb">
-
-                Staff /
-
-                <strong>
-                    Claims
-                </strong>
-
+            <div class="stat-icon">
+                ⏳
             </div>
 
-            <div class="staff-date">
-                📨 Claim Management
+            <div>
+
+                <div class="stat-number">
+                    <?php echo $pendingCount; ?>
+                </div>
+
+                <div class="stat-label">
+                    Pending
+                </div>
+
             </div>
 
         </div>
 
 
-        <section class="staff-page-heading">
+        <div class="stat-card">
 
-            <h1>
-                Manage Claims
-            </h1>
+            <div class="stat-icon">
+                ✅
+            </div>
 
-            <p>
-                Review student claims and verify the item information before making a decision.
-            </p>
+            <div>
 
-        </section>
+                <div class="stat-number">
+                    <?php echo $approvedCount; ?>
+                </div>
+
+                <div class="stat-label">
+                    Approved
+                </div>
+
+            </div>
+
+        </div>
 
 
-        <section class="staff-panel">
+        <div class="stat-card">
+
+            <div class="stat-icon">
+                ❌
+            </div>
+
+            <div>
+
+                <div class="stat-number">
+                    <?php echo $rejectedCount; ?>
+                </div>
+
+                <div class="stat-label">
+                    Rejected
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
 
 
-            <div class="staff-panel-header">
+    <!-- =========================================================
+         FILTERS
+    ========================================================= -->
 
-                <h2>
-                    Submitted Claims
-                </h2>
+    <div class="filter-card">
+
+        <a
+            href="claims.php?filter=all"
+            class="filter-link <?php echo $filter === 'all' ? 'active' : ''; ?>"
+        >
+            All
+        </a>
+
+
+        <a
+            href="claims.php?filter=pending"
+            class="filter-link <?php echo $filter === 'pending' ? 'active' : ''; ?>"
+        >
+            Pending
+        </a>
+
+
+        <a
+            href="claims.php?filter=approved"
+            class="filter-link <?php echo $filter === 'approved' ? 'active' : ''; ?>"
+        >
+            Approved
+        </a>
+
+
+        <a
+            href="claims.php?filter=rejected"
+            class="filter-link <?php echo $filter === 'rejected' ? 'active' : ''; ?>"
+        >
+            Rejected
+        </a>
+
+    </div>
+
+
+    <!-- =========================================================
+         CLAIM TABLE
+    ========================================================= -->
+
+    <div class="table-card">
+
+        <div class="table-header">
+
+            <h2>Student Claims</h2>
+
+            <span>
+                <?php echo count($allClaims); ?> result(s)
+            </span>
+
+        </div>
+
+
+        <?php if (empty($allClaims)): ?>
+
+            <div class="empty">
+
+                <div class="empty-icon">
+                    📭
+                </div>
+
+                <h3>No claims found</h3>
 
                 <p>
-                    Click a claim to view the item photo and complete claim details.
+                    There are no claims matching this filter.
                 </p>
 
             </div>
 
-
-            <!-- =====================================================
-                 FILTERS
-                 ===================================================== -->
-
-            <div class="claim-filter-bar">
-
-                <a
-                    href="claims.php?status=all"
-                    class="claim-filter-tab <?php echo $filter === 'all' ? 'active' : ''; ?>"
-                >
-
-                    All
-
-                    <span class="claim-filter-count">
-                        <?php echo $allCount; ?>
-                    </span>
-
-                </a>
+        <?php else: ?>
 
 
-                <a
-                    href="claims.php?status=pending"
-                    class="claim-filter-tab <?php echo $filter === 'pending' ? 'active' : ''; ?>"
-                >
+            <table>
 
-                    Pending
+                <thead>
 
-                    <span class="claim-filter-count">
-                        <?php echo $pendingCount; ?>
-                    </span>
+                    <tr>
 
-                </a>
+                        <th>Item</th>
 
+                        <th>Student</th>
 
-                <a
-                    href="claims.php?status=approved"
-                    class="claim-filter-tab approved <?php echo $filter === 'approved' ? 'active' : ''; ?>"
-                >
+                        <th>Location</th>
 
-                    Approved
+                        <th>Status</th>
 
-                    <span class="claim-filter-count">
-                        <?php echo $approvedCount; ?>
-                    </span>
+                        <th>Action</th>
 
-                </a>
+                    </tr>
+
+                </thead>
 
 
-                <a
-                    href="claims.php?status=rejected"
-                    class="claim-filter-tab rejected <?php echo $filter === 'rejected' ? 'active' : ''; ?>"
-                >
+                <tbody>
 
-                    Rejected
+                <?php foreach ($allClaims as $claim): ?>
 
-                    <span class="claim-filter-count">
-                        <?php echo $rejectedCount; ?>
-                    </span>
-
-                </a>
-
-            </div>
-
-
-            <!-- =====================================================
-                 CLAIM TABLE
-                 ===================================================== -->
-
-            <div class="staff-table-wrap">
-
-                <table class="staff-table">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>
-                                Item
-                            </th>
-
-                            <th>
-                                Student
-                            </th>
-
-                            <th>
-                                Location
-                            </th>
-
-                            <th>
-                                Reason
-                            </th>
-
-                            <th>
-                                Status
-                            </th>
-
-                            <th>
-                                Action
-                            </th>
-
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody>
 
                     <?php
 
-                    $hasClaims = false;
+                    $claimId = (string)$claim["_id"];
 
-                    foreach ($allClaims as $claim):
+                    $item = null;
 
-                        $hasClaims = true;
 
-                        $id = (string)$claim["_id"];
-
-                        $item = null;
-
+                    if (!empty($claim["item_id"])) {
 
                         try {
 
-                            if (!empty($claim["item_id"])) {
+                            $itemId = $claim["item_id"];
 
-                                $itemId = (string)$claim["item_id"];
+                            if ($itemId instanceof ObjectId) {
 
-                                if (
-                                    preg_match(
-                                        '/^[a-f0-9]{24}$/i',
-                                        $itemId
-                                    )
-                                ) {
+                                $item = $reports->findOne([
+                                    "_id" => $itemId
+                                ]);
 
-                                    $item = $reports->findOne([
-                                        "_id" =>
-                                            new ObjectId($itemId)
-                                    ]);
-                                }
+                            } elseif (
+                                is_string($itemId) &&
+                                preg_match('/^[a-f0-9]{24}$/i', $itemId)
+                            ) {
+
+                                $item = $reports->findOne([
+                                    "_id" => new ObjectId($itemId)
+                                ]);
+
                             }
 
                         } catch (Exception $e) {
 
                             $item = null;
+
                         }
 
-
-                        $status =
-                            $claim["status"]
-                            ?? "pending";
+                    }
 
 
-                        /*
-                         * =================================================
-                         * IMAGE FIX
-                         * =================================================
-                         */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CLOUDINARY / LOCAL IMAGE
+                    |--------------------------------------------------------------------------
+                    */
 
-                        $photoPath = "";
+                    $photoPath = "";
 
-                        if (
-                            $item &&
-                            !empty($item["image_path"])
-                        ) {
+                    if (
+                        $item &&
+                        !empty($item["image_path"])
+                    ) {
 
-                            $photoPath = getImageUrl(
+                        $photoPath =
+                            getStaffImageUrl(
                                 $item["image_path"]
                             );
-                        }
+
+                    }
+
+
+                    $itemName =
+                        $item["item_name"]
+                        ?? "Item Not Found";
+
+
+                    $studentName =
+                        $claim["student_name"]
+                        ?? "Unknown Student";
+
+
+                    $location =
+                        $item["location"]
+                        ?? "Not specified";
+
+
+                    $status =
+                        $claim["status"]
+                        ?? "pending";
 
                     ?>
 
-                        <tr
-                            class="claim-clickable"
-                            onclick="openClaim('<?php echo htmlspecialchars($id, ENT_QUOTES); ?>')"
-                        >
 
-                            <td>
+                    <tr>
 
-                                <div
-                                    style="
-                                    display:flex;
-                                    align-items:center;
-                                    gap:10px;
-                                    "
-                                >
 
-                                    <div class="staff-item-photo">
+                        <!-- ITEM -->
 
-                                        <?php if ($photoPath !== ""): ?>
+                        <td>
 
-                                            <img
-                                                src="<?php echo htmlspecialchars($photoPath, ENT_QUOTES); ?>"
-                                                alt="Item photo"
-                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                                            >
+                            <div class="item-cell">
 
-                                            <div
-                                                class="staff-no-photo"
-                                                style="display:none;"
-                                            >
-                                                📦
-                                            </div>
 
-                                        <?php else: ?>
+                                <div class="item-image">
 
-                                            <div class="staff-no-photo">
-                                                📦
-                                            </div>
+                                    <?php if (!empty($photoPath)): ?>
 
-                                        <?php endif; ?>
+                                        <img
+                                            src="<?php echo htmlspecialchars($photoPath); ?>"
+                                            alt="Item photo"
+                                            onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;no-photo&quot;>📦</div>';"
+                                        >
+
+                                    <?php else: ?>
+
+                                        <div class="no-photo">
+                                            📦
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </div>
+
+
+                                <div>
+
+                                    <div class="item-name">
+
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $itemName
+                                        );
+                                        ?>
 
                                     </div>
 
 
-                                    <div>
-
-                                        <div class="staff-item-name">
-
-                                            <?php
-                                            echo htmlspecialchars(
-                                                $item["item_name"]
-                                                ?? "Item Not Found"
-                                            );
-                                            ?>
-
-                                        </div>
-
-                                        <div class="staff-item-sub">
-
-                                            Click to view details
-
-                                        </div>
-
+                                    <div class="item-sub">
+                                        Claim #<?php echo htmlspecialchars(substr($claimId, 0, 8)); ?>
                                     </div>
 
                                 </div>
 
-                            </td>
+
+                            </div>
+
+                        </td>
 
 
-                            <td>
+                        <!-- STUDENT -->
 
-                                <?php
-                                echo htmlspecialchars(
-                                    $claim["student_name"]
-                                    ?? "Unknown"
-                                );
-                                ?>
+                        <td>
 
-                            </td>
-
-
-                            <td>
+                            <div class="student-name">
 
                                 <?php
                                 echo htmlspecialchars(
-                                    $item["location"]
-                                    ?? "Not specified"
+                                    $studentName
                                 );
                                 ?>
 
-                            </td>
+                            </div>
+
+                        </td>
 
 
-                            <td>
+                        <!-- LOCATION -->
 
+                        <td>
+
+                            <div class="location">
+
+                                📍
                                 <?php
-
-                                $reason =
-                                    $claim["reason"]
-                                    ?? "No reason";
-
                                 echo htmlspecialchars(
-                                    mb_strimwidth(
-                                        $reason,
-                                        0,
-                                        45,
-                                        "..."
-                                    )
+                                    $location
                                 );
-
                                 ?>
 
-                            </td>
+                            </div>
+
+                        </td>
 
 
-                            <td>
+                        <!-- STATUS -->
 
-                                <span
-                                    class="staff-status <?php echo htmlspecialchars($status); ?>"
-                                >
+                        <td>
 
-                                    <?php
-                                    echo htmlspecialchars(
-                                        ucfirst($status)
-                                    );
-                                    ?>
-
-                                </span>
-
-                            </td>
-
-
-                            <td
-                                onclick="event.stopPropagation();"
+                            <span
+                                class="status <?php echo htmlspecialchars($status); ?>"
                             >
+
+                                <?php
+                                echo ucfirst(
+                                    htmlspecialchars($status)
+                                );
+                                ?>
+
+                            </span>
+
+                        </td>
+
+
+                        <!-- ACTION -->
+
+                        <td>
+
+                            <div class="actions">
+
+
+                                <button
+                                    type="button"
+                                    class="btn btn-view"
+                                    onclick="openClaimModal('<?php echo htmlspecialchars($claimId, ENT_QUOTES); ?>')"
+                                >
+                                    View
+                                </button>
+
 
                                 <?php if ($status === "pending"): ?>
 
-                                    <div class="staff-button-row">
 
-                                        <form method="POST">
-
-                                            <input
-                                                type="hidden"
-                                                name="claim_id"
-                                                value="<?php echo htmlspecialchars($id, ENT_QUOTES); ?>"
-                                            >
-
-                                            <button
-                                                class="staff-button staff-approve"
-                                                type="submit"
-                                                name="action"
-                                                value="approve"
-                                            >
-                                                Approve
-                                            </button>
-
-                                        </form>
-
-
-                                        <form method="POST">
-
-                                            <input
-                                                type="hidden"
-                                                name="claim_id"
-                                                value="<?php echo htmlspecialchars($id, ENT_QUOTES); ?>"
-                                            >
-
-                                            <button
-                                                class="staff-button staff-reject"
-                                                type="submit"
-                                                name="action"
-                                                value="reject"
-                                            >
-                                                Reject
-                                            </button>
-
-                                        </form>
-
-                                    </div>
-
-                                <?php else: ?>
-
-                                    <span
-                                        style="
-                                        color:#9aa59e;
-                                        font-size:10px;
-                                        font-weight:700;
-                                        "
+                                    <form
+                                        method="POST"
+                                        style="display:inline;"
+                                        onsubmit="return confirm('Approve this claim?');"
                                     >
-                                        Reviewed
-                                    </span>
+
+                                        <input
+                                            type="hidden"
+                                            name="claim_id"
+                                            value="<?php echo htmlspecialchars($claimId); ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="approve"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-approve"
+                                        >
+                                            Approve
+                                        </button>
+
+                                    </form>
+
+
+                                    <form
+                                        method="POST"
+                                        style="display:inline;"
+                                        onsubmit="return confirm('Reject this claim?');"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="claim_id"
+                                            value="<?php echo htmlspecialchars($claimId); ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="reject"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-reject"
+                                        >
+                                            Reject
+                                        </button>
+
+                                    </form>
+
 
                                 <?php endif; ?>
 
-                            </td>
 
-                        </tr>
+                            </div>
 
-                    <?php endforeach; ?>
-
-
-                    <?php if (!$hasClaims): ?>
-
-                        <tr>
-
-                            <td colspan="6">
-
-                                <div class="staff-empty">
-
-                                    <div class="staff-empty-icon">
-                                        📨
-                                    </div>
-
-                                    <h3>
-                                        No <?php echo htmlspecialchars($filter); ?> claims
-                                    </h3>
-
-                                    <p>
-                                        There are currently no claims in this section.
-                                    </p>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </section>
+                        </td>
 
 
-    </main>
-
-</div>
+                    </tr>
 
 
-<!-- =====================================================
-     CLAIM DETAILS MODAL
-     ===================================================== -->
+                <?php endforeach; ?>
+
+                </tbody>
+
+            </table>
+
+
+        <?php endif; ?>
+
+    </div>
+
+
+</main>
+
+
+<!-- =============================================================
+     CLAIM MODAL
+============================================================= -->
 
 <div
+    class="modal-overlay"
     id="claimModal"
-    class="staff-modal"
-    onclick="closeClaim(event)"
+    onclick="closeClaimModal(event)"
 >
 
+
     <div
-        class="staff-modal-box"
-        onclick="event.stopPropagation()"
+        class="modal"
+        onclick="event.stopPropagation();"
     >
 
-        <div class="staff-modal-header">
+
+        <div class="modal-header">
 
             <h2>
                 Claim Details
             </h2>
 
+
             <button
-                class="staff-modal-close"
-                onclick="closeClaim()"
+                class="close-btn"
+                onclick="closeClaimModal()"
             >
                 ×
             </button>
@@ -1022,111 +1833,125 @@ foreach (
         </div>
 
 
-        <div class="staff-modal-content">
-
-            <div class="staff-detail-layout">
+        <div class="modal-body">
 
 
-                <!-- ITEM PHOTO -->
+            <div
+                class="photo-box"
+                id="claimPhoto"
+            >
+                <div class="staff-no-large-photo">
+                    📦
+                    <span>Loading...</span>
+                </div>
+            </div>
 
-                <div
-                    id="claimPhoto"
-                    class="staff-large-photo"
-                ></div>
+
+            <div class="details">
 
 
-                <div class="staff-detail-info">
+                <div class="detail">
 
-                    <h3 id="claimItem">
+                    <div class="detail-label">
                         Item
-                    </h3>
-
-                    <div class="staff-detail-subtitle">
-                        Complete claim information
                     </div>
-
-
-                    <div class="staff-detail-grid">
-
-
-                        <div class="staff-detail-field">
-
-                            <label>
-                                Student
-                            </label>
-
-                            <div id="claimStudent">
-                                —
-                            </div>
-
-                        </div>
-
-
-                        <div class="staff-detail-field">
-
-                            <label>
-                                Status
-                            </label>
-
-                            <div id="claimStatus">
-                                —
-                            </div>
-
-                        </div>
-
-
-                        <div class="staff-detail-field">
-
-                            <label>
-                                Location
-                            </label>
-
-                            <div id="claimLocation">
-                                —
-                            </div>
-
-                        </div>
-
-
-                        <div class="staff-detail-field full">
-
-                            <label>
-                                Item Description
-                            </label>
-
-                            <div id="claimDescription">
-                                —
-                            </div>
-
-                        </div>
-
-
-                        <div class="staff-detail-field full">
-
-                            <label>
-                                Student's Reason
-                            </label>
-
-                            <div id="claimReason">
-                                —
-                            </div>
-
-                        </div>
-
-
-                    </div>
-
 
                     <div
-                        id="claimActions"
-                        class="staff-modal-actions"
-                    ></div>
+                        class="detail-value"
+                        id="claimItem"
+                    >
+                    </div>
 
                 </div>
 
+
+                <div class="detail">
+
+                    <div class="detail-label">
+                        Student
+                    </div>
+
+                    <div
+                        class="detail-value"
+                        id="claimStudent"
+                    >
+                    </div>
+
+                </div>
+
+
+                <div class="detail">
+
+                    <div class="detail-label">
+                        Location
+                    </div>
+
+                    <div
+                        class="detail-value"
+                        id="claimLocation"
+                    >
+                    </div>
+
+                </div>
+
+
+                <div class="detail">
+
+                    <div class="detail-label">
+                        Status
+                    </div>
+
+                    <div
+                        class="detail-value"
+                        id="claimStatus"
+                    >
+                    </div>
+
+                </div>
+
+
+                <div class="detail full">
+
+                    <div class="detail-label">
+                        Item Description
+                    </div>
+
+                    <div
+                        class="detail-value"
+                        id="claimDescription"
+                    >
+                    </div>
+
+                </div>
+
+
+                <div class="detail full">
+
+                    <div class="detail-label">
+                        Claim Reason
+                    </div>
+
+                    <div
+                        class="detail-value"
+                        id="claimReason"
+                    >
+                    </div>
+
+                </div>
+
+
             </div>
 
+
         </div>
+
+
+        <div
+            class="modal-footer"
+            id="modalActions"
+        >
+        </div>
+
 
     </div>
 
@@ -1139,21 +1964,38 @@ const claimData =
     <?php
     echo json_encode(
         $claimData,
-        JSON_UNESCAPED_SLASHES |
-        JSON_UNESCAPED_UNICODE |
         JSON_HEX_TAG |
-        JSON_HEX_AMP |
         JSON_HEX_APOS |
+        JSON_HEX_AMP |
         JSON_HEX_QUOT
     );
     ?>;
 
 
 /* =========================================================
-   OPEN CLAIM
-   ========================================================= */
+   ESCAPE HTML
+========================================================= */
 
-function openClaim(id) {
+function escapeHtml(value) {
+
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   OPEN MODAL
+========================================================= */
+
+function openClaimModal(id) {
 
     const data = claimData[id];
 
@@ -1163,27 +2005,34 @@ function openClaim(id) {
 
 
     document.getElementById("claimItem").textContent =
-        data.itemName;
+        data.itemName || "Item Not Found";
+
 
     document.getElementById("claimStudent").textContent =
-        data.student;
+        data.student || "Unknown Student";
 
-    document.getElementById("claimStatus").textContent =
-        data.status;
 
     document.getElementById("claimLocation").textContent =
-        data.location;
+        data.location || "Not specified";
+
+
+    document.getElementById("claimStatus").textContent =
+        data.status || "Pending";
+
 
     document.getElementById("claimDescription").textContent =
-        data.description;
+        data.description || "No description.";
+
 
     document.getElementById("claimReason").textContent =
-        data.reason;
+        data.reason || "No reason provided.";
 
 
-    /* =====================================================
-       SHOW PHOTO
-       ===================================================== */
+    /*
+    |--------------------------------------------------------------------------
+    | IMAGE
+    |--------------------------------------------------------------------------
+    */
 
     const photo =
         document.getElementById("claimPhoto");
@@ -1191,14 +2040,11 @@ function openClaim(id) {
 
     if (data.photo) {
 
-        const safePhotoUrl =
-            escapeHtml(data.photo);
-
         photo.innerHTML = `
             <img
-                src="${safePhotoUrl}"
+                src="${escapeHtml(data.photo)}"
                 alt="Item photo"
-                onerror="showPhotoError(this)"
+                onerror="this.parentElement.innerHTML='<div class=&quot;staff-no-large-photo&quot;>📦<span>Photo could not be loaded</span></div>';"
             >
         `;
 
@@ -1210,22 +2056,29 @@ function openClaim(id) {
                 <span>No photo uploaded</span>
             </div>
         `;
+
     }
 
 
-    /* =====================================================
-       ACTIONS
-       ===================================================== */
+    /*
+    |--------------------------------------------------------------------------
+    | ACTION BUTTONS
+    |--------------------------------------------------------------------------
+    */
 
     const actions =
-        document.getElementById("claimActions");
+        document.getElementById("modalActions");
 
 
     if (data.rawStatus === "pending") {
 
         actions.innerHTML = `
 
-            <form method="POST">
+            <form
+                method="POST"
+                style="display:inline;"
+                onsubmit="return confirm('Approve this claim?');"
+            >
 
                 <input
                     type="hidden"
@@ -1233,11 +2086,15 @@ function openClaim(id) {
                     value="${escapeHtml(id)}"
                 >
 
-                <button
-                    type="submit"
+                <input
+                    type="hidden"
                     name="action"
                     value="approve"
-                    class="staff-modal-action approve"
+                >
+
+                <button
+                    type="submit"
+                    class="btn btn-approve"
                 >
                     ✓ Approve Claim
                 </button>
@@ -1245,7 +2102,11 @@ function openClaim(id) {
             </form>
 
 
-            <form method="POST">
+            <form
+                method="POST"
+                style="display:inline;"
+                onsubmit="return confirm('Reject this claim?');"
+            >
 
                 <input
                     type="hidden"
@@ -1253,11 +2114,15 @@ function openClaim(id) {
                     value="${escapeHtml(id)}"
                 >
 
-                <button
-                    type="submit"
+                <input
+                    type="hidden"
                     name="action"
                     value="reject"
-                    class="staff-modal-action reject"
+                >
+
+                <button
+                    type="submit"
+                    class="btn btn-reject"
                 >
                     ✕ Reject Claim
                 </button>
@@ -1268,14 +2133,16 @@ function openClaim(id) {
 
     } else {
 
-        actions.innerHTML =
-            `<span style="
-                color:#89958d;
-                font-size:10px;
-                font-weight:700;
-            ">
-                This claim has already been reviewed.
-            </span>`;
+        actions.innerHTML = `
+            <button
+                type="button"
+                class="btn btn-view"
+                onclick="closeClaimModal()"
+            >
+                Close
+            </button>
+        `;
+
     }
 
 
@@ -1283,35 +2150,19 @@ function openClaim(id) {
         .getElementById("claimModal")
         .classList.add("show");
 
-    document.body.style.overflow = "hidden";
 }
 
 
 /* =========================================================
-   PHOTO ERROR
-   ========================================================= */
+   CLOSE MODAL
+========================================================= */
 
-function showPhotoError(image) {
-
-    image.parentElement.innerHTML = `
-        <div class="staff-no-large-photo">
-            📦
-            <span>Photo could not be loaded</span>
-        </div>
-    `;
-}
-
-
-/* =========================================================
-   CLOSE CLAIM
-   ========================================================= */
-
-function closeClaim(event) {
+function closeClaimModal(event) {
 
     if (
         event &&
-        event.target !==
-        document.getElementById("claimModal")
+        event.target &&
+        event.target.id !== "claimModal"
     ) {
         return;
     }
@@ -1321,40 +2172,27 @@ function closeClaim(event) {
         .getElementById("claimModal")
         .classList.remove("show");
 
-    document.body.style.overflow = "";
 }
 
 
 /* =========================================================
    ESC KEY
-   ========================================================= */
+========================================================= */
 
 document.addEventListener(
     "keydown",
     function(event) {
 
         if (event.key === "Escape") {
-            closeClaim();
+
+            document
+                .getElementById("claimModal")
+                .classList.remove("show");
+
         }
 
     }
 );
-
-
-/* =========================================================
-   ESCAPE HTML
-   ========================================================= */
-
-function escapeHtml(value) {
-
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-
-}
 
 </script>
 

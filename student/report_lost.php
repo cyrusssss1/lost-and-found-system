@@ -28,12 +28,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $location = trim($_POST["location"] ?? "");
     $dateLost = $_POST["date_lost"] ?? "";
 
-    /*
-     * ==============================
-     * BASIC VALIDATION
-     * ==============================
-     */
-
     if (
         $itemName === "" ||
         $description === "" ||
@@ -46,22 +40,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
-        $imageUrl = "";
+        $imagePath = "";
 
         /*
-         * ==============================
-         * CLOUDINARY CONFIGURATION
-         * ==============================
-         */
-
-        $cloudName = getenv("CLOUDINARY_CLOUD_NAME");
-        $apiKey = getenv("CLOUDINARY_API_KEY");
-        $apiSecret = getenv("CLOUDINARY_API_SECRET");
-
-        /*
-         * ==============================
-         * IMAGE UPLOAD
-         * ==============================
+         * ==========================================
+         * CLOUDINARY IMAGE UPLOAD
+         * ==========================================
          */
 
         if (
@@ -71,34 +55,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($_FILES["item_image"]["error"] !== UPLOAD_ERR_OK) {
 
-                $message =
-                    "There was a problem uploading the image. Please try again.";
-
+                $message = "Image upload failed. Please choose the image again.";
                 $messageType = "error";
 
             } elseif ($_FILES["item_image"]["size"] > 5 * 1024 * 1024) {
 
-                $message =
-                    "Image must be 5MB or smaller.";
-
+                $message = "Image must be 5MB or smaller.";
                 $messageType = "error";
 
             } else {
 
                 $tmpFile = $_FILES["item_image"]["tmp_name"];
 
-                /*
-                 * Check that the uploaded file
-                 * is actually an image.
-                 */
-
                 $imageInfo = @getimagesize($tmpFile);
 
                 if ($imageInfo === false) {
 
-                    $message =
-                        "Please upload a valid image file.";
-
+                    $message = "Please upload a valid image.";
                     $messageType = "error";
 
                 } else {
@@ -114,25 +87,74 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     if (!in_array($mimeType, $allowedTypes, true)) {
 
-                        $message =
-                            "Only JPG, PNG, GIF, and WEBP images are allowed.";
-
-                        $messageType = "error";
-
-                    } elseif (
-                        empty($cloudName) ||
-                        empty($apiKey) ||
-                        empty($apiSecret)
-                    ) {
-
-                        $message =
-                            "Cloudinary is not configured correctly.";
-
+                        $message = "Only JPG, PNG, GIF, and WEBP images are allowed.";
                         $messageType = "error";
 
                     } else {
 
                         try {
+
+                            /*
+                             * ==========================================
+                             * CLOUDINARY CREDENTIALS
+                             *
+                             * For Render:
+                             * getenv() reads your Render environment
+                             * variables.
+                             *
+                             * For localhost:
+                             * Put your Cloudinary values in the
+                             * LOCAL CLOUDINARY section below.
+                             * ==========================================
+                             */
+
+                            $cloudName = getenv("CLOUDINARY_CLOUD_NAME");
+                            $apiKey = getenv("CLOUDINARY_API_KEY");
+                            $apiSecret = getenv("CLOUDINARY_API_SECRET");
+
+
+                            /*
+                             * ==========================================
+                             * LOCALHOST CLOUDINARY SETTINGS
+                             *
+                             * PUT YOUR OWN VALUES HERE.
+                             *
+                             * DO NOT SEND YOUR API SECRET TO ME.
+                             * ==========================================
+                             */
+
+                            if (empty($cloudName)) {
+                                $cloudName = "di5zie7e";
+                            }
+
+                            if (empty($apiKey)) {
+                                $apiKey = "789654872826227";
+                            }
+
+                            if (empty($apiSecret)) {
+                                $apiSecret = "iKlrC1ZfIuussv5oLXPyBpiFhZ4";
+                            }
+
+
+                            /*
+                             * Make sure the credentials were actually
+                             * replaced.
+                             */
+
+                            if (
+                                $cloudName === "YOUR_CLOUD_NAME" ||
+                                $apiKey === "YOUR_API_KEY" ||
+                                $apiSecret === "YOUR_API_SECRET" ||
+                                empty($cloudName) ||
+                                empty($apiKey) ||
+                                empty($apiSecret)
+                            ) {
+
+                                throw new Exception(
+                                    "Cloudinary is not configured for localhost."
+                                );
+                            }
+
 
                             /*
                              * Configure Cloudinary
@@ -149,56 +171,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 ]
                             ]);
 
+
                             /*
-                             * Upload image to Cloudinary
+                             * Upload image
                              */
 
-                            $upload = new UploadApi();
+                            $uploadApi = new UploadApi();
 
-                            $uploadResult = $upload->upload(
+                            $uploadResult = $uploadApi->upload(
                                 $tmpFile,
                                 [
                                     "folder" => "lost_and_found/items"
                                 ]
                             );
 
+
                             /*
-                             * Get permanent HTTPS image URL
+                             * Get Cloudinary URL
                              */
 
                             if (
-                                isset($uploadResult["secure_url"]) &&
-                                $uploadResult["secure_url"] !== ""
+                                !isset($uploadResult["secure_url"]) ||
+                                empty($uploadResult["secure_url"])
                             ) {
 
-                                $imageUrl =
-                                    $uploadResult["secure_url"];
-
-                            } else {
-
-                                $message =
-                                    "Image uploaded but no image URL was returned.";
-
-                                $messageType = "error";
+                                throw new Exception(
+                                    "Cloudinary did not return an image URL."
+                                );
                             }
 
-                        } catch (Exception $e) {
+                            $imagePath = $uploadResult["secure_url"];
 
-                            $message =
-                                "Image upload failed. Please try again.";
 
-                            $messageType = "error";
+                        } catch (Throwable $e) {
 
                             /*
-                             * Log the real error on the server
-                             * without exposing Cloudinary credentials
-                             * to the student.
+                             * During development, show the actual error.
+                             * This makes Cloudinary problems much easier
+                             * to identify.
                              */
 
-                            error_log(
-                                "Cloudinary upload error: " .
-                                $e->getMessage()
-                            );
+                            $message =
+                                "Image upload failed: " .
+                                $e->getMessage();
+
+                            $messageType = "error";
                         }
                     }
                 }
@@ -207,9 +224,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
         /*
-         * ==============================
-         * SAVE REPORT
-         * ==============================
+         * ==========================================
+         * SAVE REPORT TO MONGODB
+         * ==========================================
          */
 
         if ($messageType !== "error") {
@@ -218,67 +235,46 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $db = new Database();
 
-                $reports =
-                    $db->getDatabase()->reports;
+                $reports = $db->getDatabase()->reports;
 
                 $reportData = [
-
-                    "user_id" =>
-                        $_SESSION["user_id"],
-
-                    "student_name" =>
-                        $_SESSION["name"],
-
-                    "type" =>
-                        "lost",
-
-                    "item_name" =>
-                        $itemName,
-
-                    "description" =>
-                        $description,
-
-                    "location" =>
-                        $location,
-
-                    "date_lost" =>
-                        $dateLost,
-
-                    "status" =>
-                        "pending",
-
-                    "created_at" =>
-                        new MongoDB\BSON\UTCDateTime()
-
+                    "user_id" => $_SESSION["user_id"],
+                    "student_name" => $_SESSION["name"],
+                    "type" => "lost",
+                    "item_name" => $itemName,
+                    "description" => $description,
+                    "location" => $location,
+                    "date_lost" => $dateLost,
+                    "status" => "pending",
+                    "created_at" => new MongoDB\BSON\UTCDateTime()
                 ];
 
 
                 /*
                  * Save Cloudinary URL
-                 * into MongoDB.
                  */
 
-                if ($imageUrl !== "") {
-
-                    $reportData["image_path"] =
-                        $imageUrl;
+                if ($imagePath !== "") {
+                    $reportData["image_path"] = $imagePath;
                 }
 
 
-                $reports->insertOne(
-                    $reportData
-                );
+                $reports->insertOne($reportData);
 
 
-                $message =
-                    "Lost item reported successfully!";
+                if ($imagePath !== "") {
+                    $message =
+                        "Lost item reported successfully! ✓ Photo uploaded successfully.";
+                } else {
+                    $message =
+                        "Lost item reported successfully!";
+                }
 
-                $messageType =
-                    "success";
+                $messageType = "success";
 
 
                 /*
-                 * Clear form after success
+                 * Clear form after successful submission
                  */
 
                 $itemName = "";
@@ -286,18 +282,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $location = "";
                 $dateLost = "";
 
-            } catch (Exception $e) {
+
+            } catch (Throwable $e) {
 
                 $message =
-                    "The report could not be saved. Please try again.";
+                    "Unable to save the report. Please try again.";
 
-                $messageType =
-                    "error";
-
-                error_log(
-                    "Report insert error: " .
-                    $e->getMessage()
-                );
+                $messageType = "error";
             }
         }
     }
@@ -306,33 +297,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
 
-```
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>
-    Report Lost Item
-</title>
+    <title>Report Lost Item</title>
 
-<link
-    rel="stylesheet"
-    href="../style.css"
->
-
-<link
-    rel="stylesheet"
-    href="student.css"
->
-```
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="student.css">
 
 </head>
 
@@ -340,148 +319,86 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <?php include __DIR__ . '/../navbar.php'; ?>
 
+
 <main class="report-page">
 
-```
-<!-- HEADER -->
 
-<section class="report-header lost-header">
+    <!-- HEADER -->
 
-    <div>
+    <section class="report-header lost-header">
 
-        <span class="report-label">
-            REPORT AN ITEM
-        </span>
+        <div>
 
-        <h1>
-            I Lost Something 📦
-        </h1>
-
-        <p>
-            Tell us about your lost item so other students and staff
-            can help you find it.
-        </p>
-
-    </div>
-
-    <div class="report-header-icon">
-        🔎
-    </div>
-
-</section>
-
-
-<!-- FORM -->
-
-<section class="report-card">
-
-
-    <?php if ($message !== ""): ?>
-
-        <div class="form-message <?php echo htmlspecialchars($messageType); ?>">
-
-            <span>
-                <?php
-                echo $messageType === "success"
-                    ? "✓"
-                    : "!";
-                ?>
+            <span class="report-label">
+                REPORT AN ITEM
             </span>
 
-            <div>
-                <?php
-                echo htmlspecialchars($message);
-                ?>
-            </div>
+            <h1>
+                I Lost Something
+                📦
+            </h1>
+
+            <p>
+                Tell us about your lost item so other students and staff
+                can help you find it.
+            </p>
 
         </div>
 
-    <?php endif; ?>
+        <div class="report-header-icon">
+            🔎
+        </div>
+
+    </section>
 
 
-    <form
-        method="POST"
-        enctype="multipart/form-data"
-    >
+    <!-- FORM -->
+
+    <section class="report-card">
 
 
-        <!-- ITEM NAME -->
+        <?php if ($message !== ""): ?>
 
-        <div class="form-field">
-
-            <label for="item_name">
-                Item Name
-            </label>
-
-            <div class="field-wrapper">
+            <div class="form-message <?php echo $messageType; ?>">
 
                 <span>
-                    📦
+                    <?php echo $messageType === "success" ? "✓" : "!"; ?>
                 </span>
 
-                <input
-                    type="text"
-                    id="item_name"
-                    name="item_name"
-                    placeholder="Example: Black Wallet"
-                    value="<?php echo htmlspecialchars($itemName); ?>"
-                    required
-                >
+                <div>
+                    <?php echo htmlspecialchars($message); ?>
+                </div>
 
             </div>
 
-        </div>
+        <?php endif; ?>
 
 
-        <!-- DESCRIPTION -->
-
-        <div class="form-field">
-
-            <label for="description">
-                Description
-            </label>
-
-            <div class="textarea-wrapper">
-
-                <span>
-                    📝
-                </span>
-
-                <textarea
-                    id="description"
-                    name="description"
-                    placeholder="Describe the item, including color, brand, marks, or other identifying details..."
-                    required
-                ><?php echo htmlspecialchars($description); ?></textarea>
-
-            </div>
-
-        </div>
+        <form
+            method="POST"
+            enctype="multipart/form-data"
+            id="reportForm"
+        >
 
 
-        <!-- LOCATION + DATE -->
-
-        <div class="form-row">
-
+            <!-- ITEM NAME -->
 
             <div class="form-field">
 
-                <label for="location">
-                    Location Lost
+                <label for="item_name">
+                    Item Name
                 </label>
 
                 <div class="field-wrapper">
 
-                    <span>
-                        📍
-                    </span>
+                    <span>📦</span>
 
                     <input
                         type="text"
-                        id="location"
-                        name="location"
-                        placeholder="Example: School Cafeteria"
-                        value="<?php echo htmlspecialchars($location); ?>"
+                        id="item_name"
+                        name="item_name"
+                        placeholder="Example: Black Wallet"
+                        value="<?php echo htmlspecialchars($itemName); ?>"
                         required
                     >
 
@@ -489,212 +406,315 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
+
+            <!-- DESCRIPTION -->
 
             <div class="form-field">
 
-                <label for="date_lost">
-                    Date Lost
+                <label for="description">
+                    Description
                 </label>
 
-                <div class="field-wrapper">
+                <div class="textarea-wrapper">
 
-                    <span>
-                        📅
-                    </span>
+                    <span>📝</span>
 
-                    <input
-                        type="date"
-                        id="date_lost"
-                        name="date_lost"
-                        value="<?php echo htmlspecialchars($dateLost); ?>"
+                    <textarea
+                        id="description"
+                        name="description"
+                        placeholder="Describe the item, including color, brand, marks, or other identifying details..."
                         required
-                    >
+                    ><?php echo htmlspecialchars($description); ?></textarea>
 
                 </div>
 
             </div>
 
 
-        </div>
+            <!-- LOCATION -->
+
+            <div class="form-row">
+
+                <div class="form-field">
+
+                    <label for="location">
+                        Location Lost
+                    </label>
+
+                    <div class="field-wrapper">
+
+                        <span>📍</span>
+
+                        <input
+                            type="text"
+                            id="location"
+                            name="location"
+                            placeholder="Example: School Cafeteria"
+                            value="<?php echo htmlspecialchars($location); ?>"
+                            required
+                        >
+
+                    </div>
+
+                </div>
 
 
-        <!-- IMAGE -->
+                <!-- DATE -->
 
-        <div class="form-field">
+                <div class="form-field">
 
-            <label>
-                Item Photo
+                    <label for="date_lost">
+                        Date Lost
+                    </label>
 
-                <span class="optional">
-                    Optional
-                </span>
+                    <div class="field-wrapper">
 
-            </label>
+                        <span>📅</span>
+
+                        <input
+                            type="date"
+                            id="date_lost"
+                            name="date_lost"
+                            value="<?php echo htmlspecialchars($dateLost); ?>"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
 
 
-            <label
-                class="image-upload"
-                id="imageUploadBox"
-            >
+            <!-- IMAGE -->
 
-                <input
-                    type="file"
-                    name="item_image"
-                    id="item_image"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
+            <div class="form-field">
+
+                <label>
+
+                    Item Photo
+
+                    <span class="optional">
+                        Optional
+                    </span>
+
+                </label>
+
+
+                <label class="image-upload">
+
+                    <input
+                        type="file"
+                        id="item_image"
+                        name="item_image"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                    >
+
+
+                    <span
+                        class="upload-icon"
+                        id="uploadIcon"
+                    >
+                        📷
+                    </span>
+
+
+                    <strong id="uploadText">
+                        Upload a photo of the item
+                    </strong>
+
+
+                    <small id="uploadStatus">
+                        JPG, PNG, GIF, or WEBP — maximum 5MB
+                    </small>
+
+
+                    <img
+                        id="imagePreview"
+                        src=""
+                        alt="Selected image preview"
+                        style="
+                            display:none;
+                            max-width:180px;
+                            max-height:180px;
+                            margin:15px auto 5px;
+                            border-radius:12px;
+                            object-fit:cover;
+                        "
+                    >
+
+                </label>
+
+            </div>
+
+
+            <!-- BUTTONS -->
+
+            <div class="form-actions">
+
+                <a
+                    href="dashboard.php"
+                    class="secondary-button"
                 >
+                    ← Back
+                </a>
 
-                <span
-                    class="upload-icon"
-                    id="uploadIcon"
+
+                <button
+                    type="submit"
+                    class="submit-button lost-submit"
+                    id="submitButton"
                 >
-                    📷
-                </span>
+                    📦 Submit Lost Item
+                </button>
 
-                <strong id="uploadText">
-                    Upload a photo of the item
-                </strong>
-
-                <small id="uploadSubtext">
-                    JPG, PNG, GIF, or WEBP — maximum 5MB
-                </small>
-
-            </label>
-
-        </div>
+            </div>
 
 
-        <!-- BUTTONS -->
+        </form>
 
-        <div class="form-actions">
+    </section>
 
-            <a
-                href="dashboard.php"
-                class="secondary-button"
-            >
-                ← Back
-            </a>
 
-            <button
-                type="submit"
-                class="submit-button lost-submit"
-            >
-                📦 Submit Lost Item
-            </button>
+    <!-- TIP -->
+
+    <div class="form-tip">
+
+        <span>💡</span>
+
+        <div>
+
+            <strong>
+                Helpful Tip
+            </strong>
+
+            <p>
+                A clear photo and detailed description can make your item
+                much easier to identify.
+            </p>
 
         </div>
-
-
-    </form>
-
-</section>
-
-
-<!-- TIP -->
-
-<div class="form-tip">
-
-    <span>
-        💡
-    </span>
-
-    <div>
-
-        <strong>
-            Helpful Tip
-        </strong>
-
-        <p>
-            A clear photo and detailed description can make your item
-            much easier to identify.
-        </p>
 
     </div>
 
-</div>
-```
 
 </main>
 
+
 <script>
 
-const imageInput =
-    document.getElementById("item_image");
-
-const uploadText =
-    document.getElementById("uploadText");
-
-const uploadSubtext =
-    document.getElementById("uploadSubtext");
-
-const uploadIcon =
-    document.getElementById("uploadIcon");
+const imageInput = document.getElementById("item_image");
+const uploadText = document.getElementById("uploadText");
+const uploadStatus = document.getElementById("uploadStatus");
+const uploadIcon = document.getElementById("uploadIcon");
+const imagePreview = document.getElementById("imagePreview");
+const reportForm = document.getElementById("reportForm");
+const submitButton = document.getElementById("submitButton");
 
 
-imageInput.addEventListener(
-    "change",
-    function () {
+/*
+ * ==========================================
+ * IMAGE SELECTION
+ * ==========================================
+ */
 
-        const file =
-            this.files[0];
+imageInput.addEventListener("change", function () {
 
-        if (!file) {
-
-            uploadIcon.textContent = "📷";
-
-            uploadText.textContent =
-                "Upload a photo of the item";
-
-            uploadSubtext.textContent =
-                "JPG, PNG, GIF, or WEBP — maximum 5MB";
-
-            return;
-        }
+    const file = this.files[0];
 
 
-        /*
-         * Check file size before submitting.
-         */
+    if (!file) {
 
-        if (file.size > 5 * 1024 * 1024) {
-
-            alert(
-                "The selected image is larger than 5MB."
-            );
-
-            this.value = "";
-
-            uploadIcon.textContent = "📷";
-
-            uploadText.textContent =
-                "Upload a photo of the item";
-
-            uploadSubtext.textContent =
-                "JPG, PNG, GIF, or WEBP — maximum 5MB";
-
-            return;
-        }
-
-
-        /*
-         * Show selected filename.
-         */
-
-        uploadIcon.textContent = "✅";
+        uploadIcon.textContent = "📷";
 
         uploadText.textContent =
-            "Image selected!";
+            "Upload a photo of the item";
 
-        uploadSubtext.textContent =
-            file.name +
-            " • " +
-            (file.size / 1024 / 1024).toFixed(2) +
-            " MB";
+        uploadStatus.textContent =
+            "JPG, PNG, GIF, or WEBP — maximum 5MB";
 
+        imagePreview.style.display = "none";
+
+        return;
     }
-);
+
+
+    /*
+     * Check file size
+     */
+
+    if (file.size > 5 * 1024 * 1024) {
+
+        uploadIcon.textContent = "⚠️";
+
+        uploadText.textContent =
+            "Image is too large";
+
+        uploadStatus.textContent =
+            "Please choose an image smaller than 5MB";
+
+        imagePreview.style.display = "none";
+
+        this.value = "";
+
+        return;
+    }
+
+
+    /*
+     * Image selected indicator
+     */
+
+    uploadIcon.textContent = "✓";
+
+    uploadText.textContent =
+        "Image selected!";
+
+    uploadStatus.textContent =
+        file.name +
+        " • " +
+        (file.size / 1024 / 1024).toFixed(2) +
+        " MB";
+
+
+    /*
+     * Image preview
+     */
+
+    const reader = new FileReader();
+
+    reader.onload = function (event) {
+
+        imagePreview.src =
+            event.target.result;
+
+        imagePreview.style.display =
+            "block";
+
+    };
+
+    reader.readAsDataURL(file);
+
+});
+
+
+/*
+ * ==========================================
+ * SUBMIT INDICATOR
+ * ==========================================
+ */
+
+reportForm.addEventListener("submit", function () {
+
+    submitButton.disabled = true;
+
+    submitButton.textContent =
+        "⏳ Uploading & Submitting...";
+
+});
 
 </script>
+
 
 </body>
 

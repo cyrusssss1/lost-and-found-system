@@ -44,7 +44,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     ? "approved"
                     : "rejected";
 
-
                 $reports->updateOne(
                     [
                         "_id" => $report["_id"]
@@ -55,15 +54,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         ]
                     ]
                 );
-
             }
 
         } catch (Exception $e) {
-
             // Invalid report ID
-
         }
-
     }
 
     header("Location: reports.php");
@@ -77,7 +72,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 $filter = $_GET["status"] ?? "all";
 
-$allowedFilters = ["all", "pending", "approved", "rejected"];
+$allowedFilters = [
+    "all",
+    "pending",
+    "approved",
+    "rejected"
+];
 
 if (!in_array($filter, $allowedFilters, true)) {
     $filter = "all";
@@ -99,9 +99,18 @@ $allReports = $reports->find(
 );
 
 $allCount = $reports->countDocuments([]);
-$pendingCount = $reports->countDocuments(["status" => "pending"]);
-$approvedCount = $reports->countDocuments(["status" => "approved"]);
-$rejectedCount = $reports->countDocuments(["status" => "rejected"]);
+
+$pendingCount = $reports->countDocuments([
+    "status" => "pending"
+]);
+
+$approvedCount = $reports->countDocuments([
+    "status" => "approved"
+]);
+
+$rejectedCount = $reports->countDocuments([
+    "status" => "rejected"
+]);
 
 
 /* =========================================================
@@ -110,14 +119,16 @@ $rejectedCount = $reports->countDocuments(["status" => "rejected"]);
 
 $reportData = [];
 
-foreach ($reports->find(
-    [],
-    [
-        "sort" => [
-            "created_at" => -1
+foreach (
+    $reports->find(
+        [],
+        [
+            "sort" => [
+                "created_at" => -1
+            ]
         ]
-    ]
-) as $report) {
+    ) as $report
+) {
 
     $id = (string)$report["_id"];
 
@@ -126,6 +137,18 @@ foreach ($reports->find(
     $date = $type === "lost"
         ? ($report["date_lost"] ?? "—")
         : ($report["date_found"] ?? "—");
+
+
+    /*
+     * IMPORTANT:
+     * Cloudinary image URLs must NOT have "../" added.
+     */
+
+    $imagePath = "";
+
+    if (!empty($report["image_path"])) {
+        $imagePath = (string)$report["image_path"];
+    }
 
 
     $reportData[$id] = [
@@ -155,10 +178,7 @@ foreach ($reports->find(
             $report["status"] ?? "pending",
 
         "photo" =>
-            !empty($report["image_path"])
-            ? "../" . $report["image_path"]
-            : ""
-
+            $imagePath
     ];
 }
 
@@ -173,6 +193,7 @@ foreach ($reports->find(
     <meta charset="UTF-8">
 
     <style>
+
         .report-filter-tabs {
             display: flex;
             flex-wrap: wrap;
@@ -230,11 +251,14 @@ foreach ($reports->find(
         }
 
         @media (max-width: 600px) {
+
             .report-filter-tab {
                 flex: 1 1 calc(50% - 10px);
                 justify-content: center;
             }
+
         }
+
     </style>
 
     <meta
@@ -252,6 +276,7 @@ foreach ($reports->find(
     >
 
 </head>
+
 
 <body class="staff-body">
 
@@ -338,7 +363,7 @@ foreach ($reports->find(
                     <?php
                     echo strtoupper(
                         substr(
-                            $_SESSION["name"],
+                            $_SESSION["name"] ?? "S",
                             0,
                             1
                         )
@@ -352,7 +377,7 @@ foreach ($reports->find(
                     <strong>
                         <?php
                         echo htmlspecialchars(
-                            $_SESSION["name"]
+                            $_SESSION["name"] ?? "Staff"
                         );
                         ?>
                     </strong>
@@ -388,6 +413,7 @@ foreach ($reports->find(
             <div class="staff-breadcrumb">
 
                 Staff /
+
                 <strong>
                     Reports
                 </strong>
@@ -427,26 +453,50 @@ foreach ($reports->find(
                     Review student reports before approving them.
                 </p>
 
+
                 <div class="report-filter-tabs">
 
-                    <a href="reports.php?status=all" class="report-filter-tab <?php echo $filter === "all" ? "active" : ""; ?>">
+                    <a
+                        href="reports.php?status=all"
+                        class="report-filter-tab <?php echo $filter === "all" ? "active" : ""; ?>"
+                    >
                         All
-                        <span><?php echo $allCount; ?></span>
+                        <span>
+                            <?php echo $allCount; ?>
+                        </span>
                     </a>
 
-                    <a href="reports.php?status=pending" class="report-filter-tab <?php echo $filter === "pending" ? "active" : ""; ?>">
+
+                    <a
+                        href="reports.php?status=pending"
+                        class="report-filter-tab <?php echo $filter === "pending" ? "active" : ""; ?>"
+                    >
                         Pending
-                        <span><?php echo $pendingCount; ?></span>
+                        <span>
+                            <?php echo $pendingCount; ?>
+                        </span>
                     </a>
 
-                    <a href="reports.php?status=approved" class="report-filter-tab approved <?php echo $filter === "approved" ? "active" : ""; ?>">
+
+                    <a
+                        href="reports.php?status=approved"
+                        class="report-filter-tab approved <?php echo $filter === "approved" ? "active" : ""; ?>"
+                    >
                         Approved
-                        <span><?php echo $approvedCount; ?></span>
+                        <span>
+                            <?php echo $approvedCount; ?>
+                        </span>
                     </a>
 
-                    <a href="reports.php?status=rejected" class="report-filter-tab rejected <?php echo $filter === "rejected" ? "active" : ""; ?>">
+
+                    <a
+                        href="reports.php?status=rejected"
+                        class="report-filter-tab rejected <?php echo $filter === "rejected" ? "active" : ""; ?>"
+                    >
                         Rejected
-                        <span><?php echo $rejectedCount; ?></span>
+                        <span>
+                            <?php echo $rejectedCount; ?>
+                        </span>
                     </a>
 
                 </div>
@@ -543,14 +593,24 @@ foreach ($reports->find(
 
                                         <?php if (!empty($report["image_path"])): ?>
 
+                                            <!-- CLOUDINARY IMAGE -->
                                             <img
-                                                src="../<?php
+                                                src="<?php
                                                 echo htmlspecialchars(
-                                                    $report["image_path"]
+                                                    (string)$report["image_path"],
+                                                    ENT_QUOTES
                                                 );
                                                 ?>"
                                                 alt="Item photo"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                                             >
+
+                                            <div
+                                                class="staff-no-photo"
+                                                style="display:none;"
+                                            >
+                                                📦
+                                            </div>
 
                                         <?php else: ?>
 
@@ -830,6 +890,7 @@ foreach ($reports->find(
 
                     <div class="staff-detail-grid">
 
+
                         <div class="staff-detail-field">
 
                             <label>
@@ -929,7 +990,15 @@ foreach ($reports->find(
 <script>
 
 const reportData =
-    <?php echo json_encode($reportData); ?>;
+    <?php
+    echo json_encode(
+        $reportData,
+        JSON_HEX_TAG |
+        JSON_HEX_AMP |
+        JSON_HEX_APOS |
+        JSON_HEX_QUOT
+    );
+    ?>;
 
 
 function openReport(id) {
@@ -969,8 +1038,25 @@ function openReport(id) {
 
     if (data.photo) {
 
-        photo.innerHTML =
-            `<img src="${escapeHtml(data.photo)}" alt="Item photo">`;
+        photo.innerHTML = `
+            <img
+                src="${escapeHtml(data.photo)}"
+                alt="Item photo"
+                onerror="
+                    this.style.display='none';
+                    document.getElementById('reportNoPhoto').style.display='flex';
+                "
+            >
+
+            <div
+                id="reportNoPhoto"
+                class="staff-no-large-photo"
+                style="display:none;"
+            >
+                📦
+                <span>Image could not be loaded</span>
+            </div>
+        `;
 
     } else {
 

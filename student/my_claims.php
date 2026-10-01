@@ -20,6 +20,10 @@ $reports = $db->getDatabase()->reports;
 $studentId = $_SESSION["user_id"];
 
 
+/* =========================================================
+   GET MY CLAIMS
+   ========================================================= */
+
 $myClaims = $claims->find(
     [
         "student_id" => $studentId
@@ -31,21 +35,139 @@ $myClaims = $claims->find(
     ]
 );
 
+
+/* =========================================================
+   IMAGE URL HELPER
+   Supports:
+   - Cloudinary URLs
+   - Other HTTPS URLs
+   - Local uploads
+   ========================================================= */
+
+function getClaimImageUrl($imagePath)
+{
+    if (empty($imagePath)) {
+        return "";
+    }
+
+    $imagePath = trim((string)$imagePath);
+
+    /*
+     * Cloudinary / external image
+     */
+    if (
+        str_starts_with($imagePath, "http://") ||
+        str_starts_with($imagePath, "https://")
+    ) {
+        return $imagePath;
+    }
+
+    /*
+     * Old/local uploaded image
+     */
+    return "../" . ltrim($imagePath, "/\\");
+}
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+```
+<meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>My Claims</title>
+<title>
+    My Claims
+</title>
 
-    <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="student.css">
+<link
+    rel="stylesheet"
+    href="../style.css"
+>
+
+<link
+    rel="stylesheet"
+    href="student.css"
+>
+
+<style>
+
+    /* =====================================================
+       CLAIM IMAGE
+       ===================================================== */
+
+    .my-claim-image {
+        position: relative;
+        width: 100%;
+        height: 230px;
+        overflow: hidden;
+        border-radius: 18px 18px 0 0;
+        background: #f1f5f3;
+    }
+
+    .my-claim-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+
+    /* =====================================================
+       NO PHOTO
+       ===================================================== */
+
+    .no-item-image {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #f1f5f3;
+        color: #7b8a82;
+        font-size: 38px;
+    }
+
+    .no-item-image span {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+
+    /* =====================================================
+       BROKEN PHOTO
+       ===================================================== */
+
+    .image-error-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #f1f5f3;
+        color: #7b8a82;
+        font-size: 38px;
+    }
+
+    .image-error-placeholder span {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+</style>
+```
 
 </head>
 
@@ -53,297 +175,488 @@ $myClaims = $claims->find(
 
 <?php include __DIR__ . '/../navbar.php'; ?>
 
-
 <main class="claims-page">
 
+```
+<!-- =====================================================
+     HEADER
+     ===================================================== -->
 
-    <section class="page-title-card">
+<section class="page-title-card">
 
-        <div>
+    <div>
 
-            <span class="report-label">
-                MY ACTIVITY
-            </span>
+        <span class="report-label">
+            MY ACTIVITY
+        </span>
 
-            <h1>
-                My Claims 🙋
-            </h1>
+        <h1>
+            My Claims 🙋
+        </h1>
 
-            <p>
-                Track the claims you have submitted and their current status.
-            </p>
+        <p>
+            Track the claims you have submitted and their current status.
+        </p>
 
-        </div>
+    </div>
 
-        <div class="page-title-icon">
-            🔔
-        </div>
+    <div class="page-title-icon">
+        🔔
+    </div>
 
-    </section>
+</section>
 
 
-    <?php
+<!-- =====================================================
+     CLAIMS
+     ===================================================== -->
 
-    $hasClaims = false;
+<?php
 
-    foreach ($myClaims as $claim):
+$hasClaims = false;
 
-        $hasClaims = true;
+foreach ($myClaims as $claim):
 
-        $status = strtolower($claim["status"] ?? "pending");
+    $hasClaims = true;
+
+
+    /* =================================================
+       STATUS
+       ================================================= */
+
+    $status = strtolower(
+        $claim["status"] ?? "pending"
+    );
+
+
+    /* =================================================
+       FIND ITEM
+       ================================================= */
+
+    $item = null;
+
+    try {
+
+        if (!empty($claim["item_id"])) {
+
+            $item = $reports->findOne([
+                "_id" => new ObjectId(
+                    (string)$claim["item_id"]
+                )
+            ]);
+
+        }
+
+    } catch (Exception $e) {
 
         $item = null;
 
-        try {
-
-            $item = $reports->findOne([
-                "_id" => new ObjectId($claim["item_id"])
-            ]);
-
-        } catch (Exception $e) {
-
-            $item = null;
-        }
-
-    ?>
+    }
 
 
-        <?php if ($status === "approved"): ?>
+    /* =================================================
+       IMAGE
+       ================================================= */
 
-            <div class="claim-notification approved">
+    $imagePath = "";
 
-                <div class="notification-icon">
-                    ✓
-                </div>
+    if ($item) {
 
-                <div>
+        $imagePath =
+            $item["image_path"]
+            ?? $item["image_url"]
+            ?? $item["photo"]
+            ?? "";
 
-                    <strong>
-                        Claim Approved! 🎉
-                    </strong>
+    }
 
-                    <p>
-                        Your claim has been approved. Please follow any
-                        instructions from staff regarding the item.
-                    </p>
+    $imageUrl =
+        getClaimImageUrl($imagePath);
 
-                </div>
+
+    /* =================================================
+       ITEM INFORMATION
+       ================================================= */
+
+    $itemName =
+        $item["item_name"]
+        ?? "Item No Longer Available";
+
+    $description =
+        $item["description"]
+        ?? "No description provided.";
+
+    $location =
+        $item["location"]
+        ?? "Location not provided.";
+
+    $dateFound =
+        $item["date_found"]
+        ?? "Not provided";
+
+?>
+
+
+    <!-- =================================================
+         APPROVED NOTIFICATION
+         ================================================= -->
+
+    <?php if ($status === "approved"): ?>
+
+        <div class="claim-notification approved">
+
+            <div class="notification-icon">
+                ✓
+            </div>
+
+            <div>
+
+                <strong>
+                    Claim Approved! 🎉
+                </strong>
+
+                <p>
+                    Your claim has been approved. Please follow any
+                    instructions from staff regarding the item.
+                </p>
 
             </div>
 
-        <?php elseif ($status === "rejected"): ?>
+        </div>
 
-            <div class="claim-notification rejected">
+    <?php elseif ($status === "rejected"): ?>
 
-                <div class="notification-icon">
-                    !
-                </div>
 
-                <div>
+        <!-- =================================================
+             REJECTED NOTIFICATION
+             ================================================= -->
 
-                    <strong>
-                        Claim Update
-                    </strong>
+        <div class="claim-notification rejected">
 
-                    <p>
-                        Your claim for this item was rejected.
-                        You may review the item details and contact staff
-                        if you believe this was a mistake.
-                    </p>
-
-                </div>
-
+            <div class="notification-icon">
+                !
             </div>
 
-        <?php endif; ?>
+            <div>
 
+                <strong>
+                    Claim Update
+                </strong>
 
-        <article class="my-claim-card">
-
-
-            <!-- IMAGE -->
-
-            <div class="my-claim-image">
-
-                <?php if (
-                    $item &&
-                    !empty($item["image_path"])
-                ): ?>
-
-                    <img
-                        src="../<?php echo htmlspecialchars(
-                            $item["image_path"]
-                        ); ?>"
-                        alt="<?php echo htmlspecialchars(
-                            $item["item_name"]
-                        ); ?>"
-                    >
-
-                <?php else: ?>
-
-                    <div class="no-item-image">
-                        🎒
-                        <span>
-                            No photo
-                        </span>
-                    </div>
-
-                <?php endif; ?>
+                <p>
+                    Your claim for this item was rejected.
+                    You may review the item details and contact staff
+                    if you believe this was a mistake.
+                </p>
 
             </div>
-
-
-            <!-- CONTENT -->
-
-            <div class="my-claim-content">
-
-                <?php if ($item): ?>
-
-                    <div class="my-claim-title-row">
-
-                        <div>
-
-                            <span class="claim-type-label">
-                                FOUND ITEM
-                            </span>
-
-                            <h2>
-                                <?php echo htmlspecialchars(
-                                    $item["item_name"]
-                                ); ?>
-                            </h2>
-
-                        </div>
-
-                        <span class="status <?php echo htmlspecialchars($status); ?>">
-                            <?php echo htmlspecialchars(
-                                ucfirst($status)
-                            ); ?>
-                        </span>
-
-                    </div>
-
-
-                    <p class="my-claim-description">
-
-                        <?php echo htmlspecialchars(
-                            $item["description"]
-                        ); ?>
-
-                    </p>
-
-
-                    <div class="report-info-list">
-
-                        <div>
-                            📍
-                            <span>
-                                <?php echo htmlspecialchars(
-                                    $item["location"]
-                                ); ?>
-                            </span>
-                        </div>
-
-
-                        <div>
-
-                            📅
-
-                            <span>
-                                <?php echo htmlspecialchars(
-                                    $item["date_found"] ?? "Not provided"
-                                ); ?>
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                <?php else: ?>
-
-                    <h2>
-                        Item No Longer Available
-                    </h2>
-
-                    <p>
-                        The original item report could not be found.
-                    </p>
-
-                <?php endif; ?>
-
-
-                <div class="claim-reason">
-
-                    <strong>
-                        Your Claim Reason
-                    </strong>
-
-                    <p>
-                        <?php echo htmlspecialchars(
-                            $claim["reason"]
-                        ); ?>
-                    </p>
-
-                </div>
-
-
-                <?php if ($status === "pending"): ?>
-
-                    <div class="activity-notice pending">
-                        ⏳ Your claim is currently being reviewed.
-                    </div>
-
-                <?php elseif ($status === "approved"): ?>
-
-                    <div class="activity-notice approved">
-                        ✓ Your claim has been approved.
-                    </div>
-
-                <?php elseif ($status === "rejected"): ?>
-
-                    <div class="activity-notice rejected">
-                        ! Your claim was rejected.
-                    </div>
-
-                <?php endif; ?>
-
-
-            </div>
-
-        </article>
-
-
-    <?php endforeach; ?>
-
-
-    <?php if (!$hasClaims): ?>
-
-        <div class="empty-results">
-
-            <div class="empty-icon">
-                🙋
-            </div>
-
-            <h2>
-                No Claims Yet
-            </h2>
-
-            <p>
-                You haven't submitted any claims yet.
-                Search found items to see if something belongs to you.
-            </p>
-
-            <a
-                href="search_items.php?type=found"
-                class="student-action-button blue"
-            >
-                🔎 Search Found Items
-            </a>
 
         </div>
 
     <?php endif; ?>
 
+
+    <!-- =================================================
+         CLAIM CARD
+         ================================================= -->
+
+    <article class="my-claim-card">
+
+
+        <!-- =================================================
+             IMAGE
+             ================================================= -->
+
+        <div class="my-claim-image">
+
+
+            <?php if ($imageUrl !== ""): ?>
+
+
+                <img
+                    src="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES); ?>"
+                    alt="<?php echo htmlspecialchars($itemName, ENT_QUOTES); ?>"
+                    loading="lazy"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                >
+
+
+                <div
+                    class="image-error-placeholder"
+                    style="display:none;"
+                >
+
+                    🎒
+
+                    <span>
+                        Photo unavailable
+                    </span>
+
+                </div>
+
+
+            <?php else: ?>
+
+
+                <div class="no-item-image">
+
+                    🎒
+
+                    <span>
+                        No photo
+                    </span>
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
+
+        <!-- =================================================
+             CONTENT
+             ================================================= -->
+
+        <div class="my-claim-content">
+
+
+            <?php if ($item): ?>
+
+
+                <div class="my-claim-title-row">
+
+
+                    <div>
+
+                        <span class="claim-type-label">
+                            FOUND ITEM
+                        </span>
+
+                        <h2>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $itemName
+                            );
+
+                            ?>
+
+                        </h2>
+
+                    </div>
+
+
+                    <span
+                        class="status <?php echo htmlspecialchars($status); ?>"
+                    >
+
+                        <?php
+
+                        echo htmlspecialchars(
+                            ucfirst($status)
+                        );
+
+                        ?>
+
+                    </span>
+
+
+                </div>
+
+
+                <!-- DESCRIPTION -->
+
+                <p class="my-claim-description">
+
+                    <?php
+
+                    echo htmlspecialchars(
+                        $description
+                    );
+
+                    ?>
+
+                </p>
+
+
+                <!-- ITEM DETAILS -->
+
+                <div class="report-info-list">
+
+
+                    <div>
+
+                        📍
+
+                        <span>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $location
+                            );
+
+                            ?>
+
+                        </span>
+
+                    </div>
+
+
+                    <div>
+
+                        📅
+
+                        <span>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $dateFound
+                            );
+
+                            ?>
+
+                        </span>
+
+                    </div>
+
+
+                </div>
+
+
+            <?php else: ?>
+
+
+                <h2>
+                    Item No Longer Available
+                </h2>
+
+
+                <p>
+                    The original item report could not be found.
+                </p>
+
+
+            <?php endif; ?>
+
+
+            <!-- =================================================
+                 CLAIM REASON
+                 ================================================= -->
+
+            <div class="claim-reason">
+
+                <strong>
+                    Your Claim Reason
+                </strong>
+
+                <p>
+
+                    <?php
+
+                    echo htmlspecialchars(
+                        $claim["reason"]
+                        ?? "No reason provided."
+                    );
+
+                    ?>
+
+                </p>
+
+            </div>
+
+
+            <!-- =================================================
+                 STATUS MESSAGE
+                 ================================================= -->
+
+            <?php if ($status === "pending"): ?>
+
+
+                <div class="activity-notice pending">
+
+                    ⏳ Your claim is currently being reviewed.
+
+                </div>
+
+
+            <?php elseif ($status === "approved"): ?>
+
+
+                <div class="activity-notice approved">
+
+                    ✓ Your claim has been approved.
+
+                </div>
+
+
+            <?php elseif ($status === "rejected"): ?>
+
+
+                <div class="activity-notice rejected">
+
+                    ! Your claim was rejected.
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
+
+    </article>
+
+
+<?php endforeach; ?>
+
+
+<!-- =====================================================
+     NO CLAIMS
+     ===================================================== -->
+
+<?php if (!$hasClaims): ?>
+
+
+    <div class="empty-results">
+
+
+        <div class="empty-icon">
+            🙋
+        </div>
+
+
+        <h2>
+            No Claims Yet
+        </h2>
+
+
+        <p>
+            You haven't submitted any claims yet.
+            Search found items to see if something belongs to you.
+        </p>
+
+
+        <a
+            href="search_items.php?type=found"
+            class="student-action-button blue"
+        >
+
+            🔎 Search Found Items
+
+        </a>
+
+
+    </div>
+
+
+<?php endif; ?>
+```
 
 </main>
 

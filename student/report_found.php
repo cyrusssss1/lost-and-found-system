@@ -121,15 +121,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                              */
 
                             if (empty($cloudName)) {
-                                $cloudName = "YOUR_CLOUD_NAME";
+                                $cloudName = "di5zie7e";
                             }
 
                             if (empty($apiKey)) {
-                                $apiKey = "YOUR_API_KEY";
+                                $apiKey = "789654872826227";
                             }
 
                             if (empty($apiSecret)) {
-                                $apiSecret = "YOUR_API_SECRET";
+                                $apiSecret = "iKlrC1ZfIuussv5oLXPyBpiFhZ4";
                             }
 
 

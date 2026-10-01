@@ -114,6 +114,18 @@ foreach (
         : ($report["date_found"] ?? "—");
 
 
+    /*
+     * IMPORTANT:
+     * Cloudinary URLs must be used directly.
+     */
+
+    $imagePath = "";
+
+    if (!empty($report["image_path"])) {
+        $imagePath = (string)$report["image_path"];
+    }
+
+
     $reportData[$id] = [
 
         "itemName" =>
@@ -141,10 +153,7 @@ foreach (
             $report["status"] ?? "pending",
 
         "photo" =>
-            !empty($report["image_path"])
-                ? "../" . ltrim((string)$report["image_path"], "/\\")
-                : ""
-
+            $imagePath
     ];
 }
 
@@ -190,6 +199,21 @@ foreach (
     }
 
 
+    /*
+     * IMPORTANT:
+     * Cloudinary URLs must be used directly.
+     */
+
+    $claimPhoto = "";
+
+    if (
+        $item &&
+        !empty($item["image_path"])
+    ) {
+        $claimPhoto = (string)$item["image_path"];
+    }
+
+
     $claimData[$id] = [
 
         "itemName" =>
@@ -214,10 +238,7 @@ foreach (
             $claim["status"] ?? "pending",
 
         "photo" =>
-            ($item && !empty($item["image_path"]))
-                ? "../" . ltrim((string)$item["image_path"], "/\\")
-                : ""
-
+            $claimPhoto
     ];
 }
 
@@ -1133,17 +1154,24 @@ $staffInitial = strtoupper(
 
                                 <?php if (!empty($report["image_path"])): ?>
 
+                                    <!-- CLOUDINARY IMAGE -->
                                     <img
-                                        src="../<?php
+                                        src="<?php
                                         echo htmlspecialchars(
-                                            ltrim(
-                                                (string)$report["image_path"],
-                                                "/\\"
-                                            )
+                                            (string)$report["image_path"],
+                                            ENT_QUOTES
                                         );
                                         ?>"
                                         alt="Item"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                                     >
+
+                                    <div
+                                        class="staff-no-photo"
+                                        style="display:none;"
+                                    >
+                                        📦
+                                    </div>
 
                                 <?php else: ?>
 
@@ -1192,11 +1220,13 @@ $staffInitial = strtoupper(
                         <span
                             class="staff-type <?php echo htmlspecialchars($type); ?>"
                         >
+
                             <?php
                             echo htmlspecialchars(
                                 ucfirst($type)
                             );
                             ?>
+
                         </span>
 
                     </td>
@@ -1207,11 +1237,13 @@ $staffInitial = strtoupper(
                         <span
                             class="staff-status <?php echo htmlspecialchars($status); ?>"
                         >
+
                             <?php
                             echo htmlspecialchars(
                                 ucfirst($status)
                             );
                             ?>
+
                         </span>
 
                     </td>
@@ -1371,17 +1403,24 @@ $staffInitial = strtoupper(
                                     !empty($item["image_path"])
                                 ): ?>
 
+                                    <!-- CLOUDINARY IMAGE -->
                                     <img
-                                        src="../<?php
+                                        src="<?php
                                         echo htmlspecialchars(
-                                            ltrim(
-                                                (string)$item["image_path"],
-                                                "/\\"
-                                            )
+                                            (string)$item["image_path"],
+                                            ENT_QUOTES
                                         );
                                         ?>"
                                         alt="Item"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                                     >
+
+                                    <div
+                                        class="staff-no-photo"
+                                        style="display:none;"
+                                    >
+                                        📦
+                                    </div>
 
                                 <?php else: ?>
 
@@ -1431,11 +1470,13 @@ $staffInitial = strtoupper(
                         <span
                             class="staff-status <?php echo htmlspecialchars($claimStatus); ?>"
                         >
+
                             <?php
                             echo htmlspecialchars(
                                 ucfirst($claimStatus)
                             );
                             ?>
+
                         </span>
 
                     </td>
@@ -1786,10 +1827,26 @@ $staffInitial = strtoupper(
 <script>
 
 const reportData =
-    <?php echo json_encode($reportData); ?>;
+    <?php
+    echo json_encode(
+        $reportData,
+        JSON_HEX_TAG |
+        JSON_HEX_AMP |
+        JSON_HEX_APOS |
+        JSON_HEX_QUOT
+    );
+    ?>;
 
 const claimData =
-    <?php echo json_encode($claimData); ?>;
+    <?php
+    echo json_encode(
+        $claimData,
+        JSON_HEX_TAG |
+        JSON_HEX_AMP |
+        JSON_HEX_APOS |
+        JSON_HEX_QUOT
+    );
+    ?>;
 
 
 /* =====================================================
@@ -1831,16 +1888,37 @@ function openReport(id) {
 
     if (data.photo) {
 
-        photo.innerHTML =
-            `<img src="${escapeHtml(data.photo)}" alt="Item photo">`;
+        photo.innerHTML = `
+
+            <img
+                src="${escapeHtml(data.photo)}"
+                alt="Item photo"
+                onerror="
+                    this.style.display='none';
+                    document.getElementById('reportNoPhoto').style.display='flex';
+                "
+            >
+
+            <div
+                id="reportNoPhoto"
+                class="staff-no-large-photo"
+                style="display:none;"
+            >
+                📦
+                <span>Image could not be loaded</span>
+            </div>
+
+        `;
 
     } else {
 
         photo.innerHTML = `
+
             <div class="staff-no-large-photo">
                 📦
                 <span>No photo uploaded</span>
             </div>
+
         `;
 
     }
@@ -1898,6 +1976,7 @@ function openReport(id) {
     } else {
 
         actions.innerHTML = `
+
             <span style="
                 color:#89958d;
                 font-size:10px;
@@ -1905,6 +1984,7 @@ function openReport(id) {
             ">
                 This report has already been reviewed.
             </span>
+
         `;
 
     }
@@ -1955,16 +2035,37 @@ function openClaim(id) {
 
     if (data.photo) {
 
-        photo.innerHTML =
-            `<img src="${escapeHtml(data.photo)}" alt="Item photo">`;
+        photo.innerHTML = `
+
+            <img
+                src="${escapeHtml(data.photo)}"
+                alt="Item photo"
+                onerror="
+                    this.style.display='none';
+                    document.getElementById('claimNoPhoto').style.display='flex';
+                "
+            >
+
+            <div
+                id="claimNoPhoto"
+                class="staff-no-large-photo"
+                style="display:none;"
+            >
+                📦
+                <span>Image could not be loaded</span>
+            </div>
+
+        `;
 
     } else {
 
         photo.innerHTML = `
+
             <div class="staff-no-large-photo">
                 📦
                 <span>No photo uploaded</span>
             </div>
+
         `;
 
     }
@@ -2022,6 +2123,7 @@ function openClaim(id) {
     } else {
 
         actions.innerHTML = `
+
             <span style="
                 color:#89958d;
                 font-size:10px;
@@ -2029,6 +2131,7 @@ function openClaim(id) {
             ">
                 This claim has already been reviewed.
             </span>
+
         `;
 
     }
@@ -2102,13 +2205,9 @@ function escapeHtml(value) {
     return String(value)
 
         .replace(/&/g, "&amp;")
-
         .replace(/</g, "&lt;")
-
         .replace(/>/g, "&gt;")
-
         .replace(/"/g, "&quot;")
-
         .replace(/'/g, "&#039;");
 
 }

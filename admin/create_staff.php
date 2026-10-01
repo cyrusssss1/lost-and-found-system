@@ -16,6 +16,94 @@ $messageType = "";
 
 
 /* =========================================================
+   CLOUDINARY UPLOAD FUNCTION
+   ========================================================= */
+
+function uploadStaffProfileToCloudinary($file)
+{
+    if (!isset($file) || $file["error"] !== UPLOAD_ERR_OK) {
+        return "";
+    }
+
+    $cloudName = getenv("CLOUDINARY_CLOUD_NAME");
+    $apiKey = getenv("CLOUDINARY_API_KEY");
+    $apiSecret = getenv("CLOUDINARY_API_SECRET");
+
+    if (!$cloudName || !$apiKey || !$apiSecret) {
+        return false;
+    }
+
+    $timestamp = time();
+
+    $folder = "lost_and_found/staff";
+
+    /*
+     * Cloudinary signature
+     */
+    $signatureString =
+        "folder=" . $folder .
+        "&timestamp=" . $timestamp .
+        $apiSecret;
+
+    $signature = sha1($signatureString);
+
+    $uploadUrl =
+        "https://api.cloudinary.com/v1_1/" .
+        rawurlencode($cloudName) .
+        "/image/upload";
+
+
+    $curlFile = new CURLFile(
+        $file["tmp_name"],
+        $file["type"],
+        $file["name"]
+    );
+
+
+    $postFields = [
+        "file" => $curlFile,
+        "api_key" => $apiKey,
+        "timestamp" => $timestamp,
+        "signature" => $signature,
+        "folder" => $folder
+    ];
+
+
+    $ch = curl_init($uploadUrl);
+
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+
+    $response = curl_exec($ch);
+
+    $curlError = curl_error($ch);
+
+    curl_close($ch);
+
+
+    if ($response === false || $curlError !== "") {
+        return false;
+    }
+
+
+    $result = json_decode($response, true);
+
+
+    if (
+        isset($result["secure_url"]) &&
+        $result["secure_url"] !== ""
+    ) {
+        return $result["secure_url"];
+    }
+
+
+    return false;
+}
+
+
+/* =========================================================
    CREATE STAFF
    ========================================================= */
 
@@ -64,33 +152,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
+            $profileImage = "";
+
 
             /* -------------------------
                PROFILE IMAGE
                ------------------------- */
 
-            $profileImage = "";
-
-
             if (
                 isset($_FILES["profile_picture"]) &&
-                $_FILES["profile_picture"]["error"] === UPLOAD_ERR_OK
+                $_FILES["profile_picture"]["error"] !== UPLOAD_ERR_NO_FILE
             ) {
 
                 $file = $_FILES["profile_picture"];
 
-                $allowedTypes = [
-                    "image/jpeg",
-                    "image/png",
-                    "image/webp",
-                    "image/gif"
-                ];
 
-
-                if (!in_array($file["type"], $allowedTypes)) {
+                if ($file["error"] !== UPLOAD_ERR_OK) {
 
                     $message =
-                        "Please upload a JPG, PNG, WEBP, or GIF image.";
+                        "There was a problem uploading the profile picture.";
 
                     $messageType = "error";
 
@@ -103,57 +183,50 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 } else {
 
+                    /*
+                     * Check the real MIME type instead of trusting
+                     * the browser-provided file type.
+                     */
 
-                    $uploadDirectory =
-                        __DIR__ . "/../uploads/staff/";
+                    $finfo = new finfo(FILEINFO_MIME_TYPE);
 
-                    if (!is_dir($uploadDirectory)) {
-
-                        mkdir(
-                            $uploadDirectory,
-                            0777,
-                            true
-                        );
-
-                    }
+                    $realMime =
+                        $finfo->file($file["tmp_name"]);
 
 
-                    $extension =
-                        strtolower(
-                            pathinfo(
-                                $file["name"],
-                                PATHINFO_EXTENSION
-                            )
-                        );
+                    $allowedTypes = [
+                        "image/jpeg",
+                        "image/png",
+                        "image/webp",
+                        "image/gif"
+                    ];
 
 
-                    $fileName =
-                        "staff_" .
-                        uniqid() .
-                        "." .
-                        $extension;
+                    if (!in_array($realMime, $allowedTypes, true)) {
 
+                        $message =
+                            "Please upload a JPG, PNG, WEBP, or GIF image.";
 
-                    $targetPath =
-                        $uploadDirectory .
-                        $fileName;
-
-
-                    if (move_uploaded_file(
-                        $file["tmp_name"],
-                        $targetPath
-                    )) {
-
-                        $profileImage =
-                            "uploads/staff/" .
-                            $fileName;
+                        $messageType = "error";
 
                     } else {
 
-                        $message =
-                            "Unable to upload the profile picture.";
+                        /*
+                         * Upload directly to Cloudinary.
+                         */
 
-                        $messageType = "error";
+                        $profileImage =
+                            uploadStaffProfileToCloudinary($file);
+
+
+                        if ($profileImage === false) {
+
+                            $message =
+                                "Unable to upload the profile picture to Cloudinary. Please check your Cloudinary settings.";
+
+                            $messageType = "error";
+
+                        }
 
                     }
 
@@ -185,6 +258,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     "role" =>
                         "staff",
 
+                    /*
+                     * This is now a full Cloudinary URL.
+                     */
                     "profile_picture" =>
                         $profileImage,
 
@@ -224,12 +300,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <title>Create Staff | Admin</title>
 
-
 <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
 >
-
 
 <style>
 
@@ -238,9 +312,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 body {
-
     margin: 0;
-
     font-family:
         "Segoe UI",
         Arial,
@@ -257,11 +329,7 @@ body {
     color: #281b36;
 }
 
-
-/* TOP */
-
 .topbar {
-
     background:
         linear-gradient(
             135deg,
@@ -271,13 +339,10 @@ body {
         );
 
     color: white;
-
     padding: 20px 35px;
 
     display: flex;
-
     justify-content: space-between;
-
     align-items: center;
 
     box-shadow:
@@ -286,133 +351,89 @@ body {
 }
 
 .brand {
-
     display: flex;
-
     align-items: center;
-
     gap: 13px;
 }
 
 .brand-icon {
-
     width: 46px;
     height: 46px;
-
     border-radius: 14px;
 
     background:
         rgba(255,255,255,.15);
 
     display: flex;
-
     align-items: center;
-
     justify-content: center;
 
     font-size: 20px;
 }
 
 .brand h1 {
-
     margin: 0;
-
     font-size: 19px;
 }
 
 .brand small {
-
     opacity: .7;
-
     font-size: 10px;
-
     letter-spacing: 1px;
 }
 
 .logout {
-
     color: white;
-
     text-decoration: none;
-
     font-size: 18px;
 }
 
-
-/* NAV */
-
 .nav {
-
     background: white;
-
     border-bottom:
         1px solid #e9e2f2;
 
     padding: 0 35px;
-
     display: flex;
-
     overflow-x: auto;
 }
 
 .nav a {
-
     color: #71667c;
-
     text-decoration: none;
-
     padding: 17px;
-
     font-weight: 600;
-
     white-space: nowrap;
 }
 
 .nav a:hover,
 .nav a.active {
-
     color: #7c3aed;
-
     border-bottom:
         3px solid #7c3aed;
 }
 
-
-/* CONTENT */
-
 .container {
-
     max-width: 850px;
-
     margin: auto;
-
     padding: 40px 25px;
 }
 
 .page-title {
-
     margin-bottom: 25px;
 }
 
 .page-title h2 {
-
     margin: 0 0 6px;
-
     font-size: 30px;
 }
 
 .page-title p {
-
     margin: 0;
-
     color: #81758c;
 }
 
-
-/* FORM CARD */
-
 .card {
-
     background: white;
 
     border:
@@ -428,20 +449,14 @@ body {
 }
 
 .profile-preview {
-
     display: flex;
-
     align-items: center;
-
     gap: 18px;
-
     margin-bottom: 28px;
 }
 
 .preview {
-
     width: 90px;
-
     height: 90px;
 
     border-radius: 50%;
@@ -457,9 +472,7 @@ body {
 }
 
 .preview-placeholder {
-
     width: 90px;
-
     height: 90px;
 
     border-radius: 50%;
@@ -474,7 +487,6 @@ body {
     display: flex;
 
     align-items: center;
-
     justify-content: center;
 
     color: #7c3aed;
@@ -483,16 +495,13 @@ body {
 }
 
 .form-group {
-
     margin-bottom: 20px;
 }
 
 label {
-
     display: block;
 
     font-size: 13px;
-
     font-weight: 700;
 
     margin-bottom: 8px;
@@ -501,7 +510,6 @@ label {
 }
 
 input {
-
     width: 100%;
 
     padding: 13px 15px;
@@ -519,7 +527,6 @@ input {
 }
 
 input:focus {
-
     border-color: #7c3aed;
 
     box-shadow:
@@ -528,15 +535,10 @@ input:focus {
 }
 
 input[type="file"] {
-
     padding: 10px;
 }
 
-
-/* BUTTON */
-
 .create-btn {
-
     width: 100%;
 
     border: 0;
@@ -555,7 +557,6 @@ input[type="file"] {
     color: white;
 
     font-size: 14px;
-
     font-weight: 800;
 
     cursor: pointer;
@@ -566,44 +567,27 @@ input[type="file"] {
 }
 
 .create-btn:hover {
-
-    transform:
-        translateY(-1px);
+    transform: translateY(-1px);
 }
 
-
-/* MESSAGE */
-
 .message {
-
     padding: 14px 17px;
-
     border-radius: 13px;
-
     margin-bottom: 20px;
-
     font-weight: 700;
 }
 
 .success {
-
     background: #dcfce7;
-
     color: #166534;
 }
 
 .error {
-
     background: #fee2e2;
-
     color: #991b1b;
 }
 
-
-/* BACK */
-
 .back {
-
     display: inline-block;
 
     margin-top: 20px;
@@ -615,26 +599,21 @@ input[type="file"] {
     font-weight: 700;
 }
 
-
 @media(max-width:600px) {
 
     .topbar {
-
         padding: 18px;
     }
 
     .nav {
-
         padding: 0 10px;
     }
 
     .container {
-
         padding: 25px 15px;
     }
 
     .card {
-
         padding: 22px;
     }
 
@@ -644,30 +623,29 @@ input[type="file"] {
 
 </head>
 
-
 <body>
-
 
 <header class="topbar">
 
     <div class="brand">
 
         <div class="brand-icon">
-
             <i class="fa-solid fa-crown"></i>
-
         </div>
 
         <div>
 
-            <h1>Admin Control Center</h1>
+            <h1>
+                Admin Control Center
+            </h1>
 
-            <small>STAFF MANAGEMENT</small>
+            <small>
+                STAFF MANAGEMENT
+            </small>
 
         </div>
 
     </div>
-
 
     <a
         class="logout"
@@ -716,7 +694,6 @@ input[type="file"] {
 
 <main class="container">
 
-
     <div class="page-title">
 
         <h2>
@@ -759,17 +736,18 @@ input[type="file"] {
 
     <div class="card">
 
-
         <form
             method="POST"
             action="create_staff.php"
             enctype="multipart/form-data"
         >
 
-
             <div class="profile-preview">
 
-                <div class="preview-placeholder" id="placeholder">
+                <div
+                    class="preview-placeholder"
+                    id="placeholder"
+                >
 
                     <i class="fa-solid fa-user"></i>
 
@@ -787,7 +765,13 @@ input[type="file"] {
                         Staff Profile Picture
                     </strong>
 
-                    <p style="color:#81758c;margin:5px 0;font-size:12px;">
+                    <p
+                        style="
+                        color:#81758c;
+                        margin:5px 0;
+                        font-size:12px;
+                        "
+                    >
                         JPG, PNG, WEBP or GIF • Maximum 5MB
                     </p>
 
@@ -886,7 +870,6 @@ input[type="file"] {
 
             </button>
 
-
         </form>
 
     </div>
@@ -902,7 +885,6 @@ input[type="file"] {
         Back to Manage Staff
 
     </a>
-
 
 </main>
 
@@ -960,7 +942,6 @@ fileInput.addEventListener(
 );
 
 </script>
-
 
 </body>
 

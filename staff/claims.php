@@ -14,8 +14,48 @@ use MongoDB\BSON\ObjectId;
 
 $db = new Database();
 
-$claims = $db->getDatabase()->claims;
-$reports = $db->getDatabase()->reports;
+$database = $db->getDatabase();
+
+$claims = $database->claims;
+$reports = $database->reports;
+
+
+/* =========================================================
+   IMAGE PATH HELPER
+   ========================================================= */
+
+function getImageUrl($imagePath)
+{
+    if (empty($imagePath)) {
+        return "";
+    }
+
+    $imagePath = trim((string)$imagePath);
+
+    /*
+     * Cloudinary / external image
+     *
+     * Example:
+     * https://res.cloudinary.com/...
+     */
+    if (
+        filter_var($imagePath, FILTER_VALIDATE_URL) &&
+        (
+            str_starts_with($imagePath, "http://") ||
+            str_starts_with($imagePath, "https://")
+        )
+    ) {
+        return $imagePath;
+    }
+
+    /*
+     * Local image path
+     *
+     * Example:
+     * uploads/items/photo.jpg
+     */
+    return "../" . ltrim($imagePath, "/\\");
+}
 
 
 /* =========================================================
@@ -60,7 +100,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } catch (Exception $e) {
 
             // Invalid claim ID
-
         }
     }
 
@@ -132,41 +171,61 @@ $rejectedCount = $claims->countDocuments([
 
 $claimData = [];
 
-foreach ($claims->find(
-    [],
-    [
-        "sort" => [
-            "created_at" => -1
+foreach (
+    $claims->find(
+        [],
+        [
+            "sort" => [
+                "created_at" => -1
+            ]
         ]
-    ]
-) as $claim) {
+    ) as $claim
+) {
 
     $id = (string)$claim["_id"];
 
     $item = null;
 
+
     try {
 
         if (!empty($claim["item_id"])) {
 
-            $item = $reports->findOne([
-                "_id" => new ObjectId(
-                    (string)$claim["item_id"]
-                )
-            ]);
+            $itemId = (string)$claim["item_id"];
 
+            /*
+             * Make sure the ID is a valid MongoDB ObjectId.
+             */
+            if (preg_match('/^[a-f0-9]{24}$/i', $itemId)) {
+
+                $item = $reports->findOne([
+                    "_id" => new ObjectId($itemId)
+                ]);
+            }
         }
 
     } catch (Exception $e) {
 
         $item = null;
-
     }
 
 
     /*
-     * IMPORTANT:
-     * Student reports save photos as image_path.
+     * =====================================================
+     * IMAGE FIX
+     * =====================================================
+     *
+     * If image_path is a Cloudinary URL:
+     *
+     * https://res.cloudinary.com/...
+     *
+     * keep it exactly as it is.
+     *
+     * If it is a local path:
+     *
+     * uploads/...
+     *
+     * add ../
      */
 
     $photoPath = "";
@@ -176,12 +235,9 @@ foreach ($claims->find(
         !empty($item["image_path"])
     ) {
 
-        $photoPath =
-            "../" .
-            ltrim(
-                (string)$item["image_path"],
-                "/\\"
-            );
+        $photoPath = getImageUrl(
+            $item["image_path"]
+        );
     }
 
 
@@ -344,7 +400,9 @@ foreach ($claims->find(
 <div class="staff-layout">
 
 
-    <!-- SIDEBAR -->
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
 
     <aside class="staff-sidebar">
 
@@ -463,7 +521,9 @@ foreach ($claims->find(
     </aside>
 
 
-    <!-- MAIN -->
+    <!-- =====================================================
+         MAIN
+         ===================================================== -->
 
     <main class="staff-main">
 
@@ -473,6 +533,7 @@ foreach ($claims->find(
             <div class="staff-breadcrumb">
 
                 Staff /
+
                 <strong>
                     Claims
                 </strong>
@@ -515,7 +576,9 @@ foreach ($claims->find(
             </div>
 
 
-            <!-- FILTERS -->
+            <!-- =====================================================
+                 FILTERS
+                 ===================================================== -->
 
             <div class="claim-filter-bar">
 
@@ -577,6 +640,10 @@ foreach ($claims->find(
             </div>
 
 
+            <!-- =====================================================
+                 CLAIM TABLE
+                 ===================================================== -->
+
             <div class="staff-table-wrap">
 
                 <table class="staff-table">
@@ -633,19 +700,25 @@ foreach ($claims->find(
 
                             if (!empty($claim["item_id"])) {
 
-                                $item = $reports->findOne([
-                                    "_id" =>
-                                        new ObjectId(
-                                            (string)$claim["item_id"]
-                                        )
-                                ]);
+                                $itemId = (string)$claim["item_id"];
 
+                                if (
+                                    preg_match(
+                                        '/^[a-f0-9]{24}$/i',
+                                        $itemId
+                                    )
+                                ) {
+
+                                    $item = $reports->findOne([
+                                        "_id" =>
+                                            new ObjectId($itemId)
+                                    ]);
+                                }
                             }
 
                         } catch (Exception $e) {
 
                             $item = null;
-
                         }
 
 
@@ -655,8 +728,9 @@ foreach ($claims->find(
 
 
                         /*
-                         * IMPORTANT:
-                         * Use image_path, not photo.
+                         * =================================================
+                         * IMAGE FIX
+                         * =================================================
                          */
 
                         $photoPath = "";
@@ -666,12 +740,9 @@ foreach ($claims->find(
                             !empty($item["image_path"])
                         ) {
 
-                            $photoPath =
-                                "../" .
-                                ltrim(
-                                    (string)$item["image_path"],
-                                    "/\\"
-                                );
+                            $photoPath = getImageUrl(
+                                $item["image_path"]
+                            );
                         }
 
                     ?>
@@ -696,9 +767,17 @@ foreach ($claims->find(
                                         <?php if ($photoPath !== ""): ?>
 
                                             <img
-                                                src="<?php echo htmlspecialchars($photoPath); ?>"
+                                                src="<?php echo htmlspecialchars($photoPath, ENT_QUOTES); ?>"
                                                 alt="Item photo"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                                             >
+
+                                            <div
+                                                class="staff-no-photo"
+                                                style="display:none;"
+                                            >
+                                                📦
+                                            </div>
 
                                         <?php else: ?>
 
@@ -813,7 +892,7 @@ foreach ($claims->find(
                                             <input
                                                 type="hidden"
                                                 name="claim_id"
-                                                value="<?php echo htmlspecialchars($id); ?>"
+                                                value="<?php echo htmlspecialchars($id, ENT_QUOTES); ?>"
                                             >
 
                                             <button
@@ -833,7 +912,7 @@ foreach ($claims->find(
                                             <input
                                                 type="hidden"
                                                 name="claim_id"
-                                                value="<?php echo htmlspecialchars($id); ?>"
+                                                value="<?php echo htmlspecialchars($id, ENT_QUOTES); ?>"
                                             >
 
                                             <button
@@ -1057,8 +1136,22 @@ foreach ($claims->find(
 <script>
 
 const claimData =
-    <?php echo json_encode($claimData); ?>;
+    <?php
+    echo json_encode(
+        $claimData,
+        JSON_UNESCAPED_SLASHES |
+        JSON_UNESCAPED_UNICODE |
+        JSON_HEX_TAG |
+        JSON_HEX_AMP |
+        JSON_HEX_APOS |
+        JSON_HEX_QUOT
+    );
+    ?>;
 
+
+/* =========================================================
+   OPEN CLAIM
+   ========================================================= */
 
 function openClaim(id) {
 
@@ -1098,11 +1191,14 @@ function openClaim(id) {
 
     if (data.photo) {
 
+        const safePhotoUrl =
+            escapeHtml(data.photo);
+
         photo.innerHTML = `
             <img
-                src="${escapeHtml(data.photo)}"
+                src="${safePhotoUrl}"
                 alt="Item photo"
-                onerror="this.parentElement.innerHTML='<div class=&quot;staff-no-large-photo&quot;>📦<span>Photo could not be loaded</span></div>';"
+                onerror="showPhotoError(this)"
             >
         `;
 
@@ -1114,7 +1210,6 @@ function openClaim(id) {
                 <span>No photo uploaded</span>
             </div>
         `;
-
     }
 
 
@@ -1174,10 +1269,13 @@ function openClaim(id) {
     } else {
 
         actions.innerHTML =
-            `<span style="color:#89958d;font-size:10px;font-weight:700;">
+            `<span style="
+                color:#89958d;
+                font-size:10px;
+                font-weight:700;
+            ">
                 This claim has already been reviewed.
             </span>`;
-
     }
 
 
@@ -1188,6 +1286,25 @@ function openClaim(id) {
     document.body.style.overflow = "hidden";
 }
 
+
+/* =========================================================
+   PHOTO ERROR
+   ========================================================= */
+
+function showPhotoError(image) {
+
+    image.parentElement.innerHTML = `
+        <div class="staff-no-large-photo">
+            📦
+            <span>Photo could not be loaded</span>
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   CLOSE CLAIM
+   ========================================================= */
 
 function closeClaim(event) {
 
@@ -1208,6 +1325,10 @@ function closeClaim(event) {
 }
 
 
+/* =========================================================
+   ESC KEY
+   ========================================================= */
+
 document.addEventListener(
     "keydown",
     function(event) {
@@ -1219,6 +1340,10 @@ document.addEventListener(
     }
 );
 
+
+/* =========================================================
+   ESCAPE HTML
+   ========================================================= */
 
 function escapeHtml(value) {
 

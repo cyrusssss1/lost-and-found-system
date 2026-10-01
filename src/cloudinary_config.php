@@ -2,9 +2,13 @@
 
 use Cloudinary\Configuration\Configuration;
 
-$cloudName =  "di5zie7e";
-$apiKey = "789654872826227";
-$apiSecret = "iKlrC1ZfIuussv5oLXPyBpiFhZ4";
+$cloudName = getenv(" di5zie7e");
+$apiKey = getenv("789654872826227");
+$apiSecret = getenv("iKlrC1ZfIuussv5oLXPyBpiFhZ4");
+
+if (!$cloudName || !$apiKey || !$apiSecret) {
+    die("Cloudinary configuration is missing.");
+}
 
 Configuration::instance([
     "cloud" => [

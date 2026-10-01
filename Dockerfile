@@ -1,23 +1,23 @@
 FROM php:8.2-apache
 
-RUN docker-php-ext-install mysqli
+RUN apt-get update && apt-get install -y \
+    libssl-dev \
+    pkg-config \
+    unzip \
+    git \
+    && pecl install mongodb \
+    && docker-php-ext-enable mongodb \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod rewrite
 
-COPY . /var/www/html/
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www/html/
+WORKDIR /var/www/html
 
-RUN if [ -f composer.json ]; then \
-        apt-get update && \
-        apt-get install -y git unzip libssl-dev pkg-config && \
-        pecl install mongodb && \
-        docker-php-ext-enable mongodb && \
-        php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
-        php composer-setup.php --install-dir=/usr/local/bin --filename=composer && \
-        rm composer-setup.php && \
-        composer install --no-dev --optimize-autoloader; \
-    fi
+COPY . /var/www/html
+
+RUN composer install --no-dev --optimize-autoloader
 
 RUN chown -R www-data:www-data /var/www/html
 

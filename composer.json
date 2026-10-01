@@ -7,6 +7,6 @@
     },
     "require": {
         "mongodb/mongodb": "^2.3",
-        "cloudinary/cloudinary_php": "^3"
+        "cloudinary/cloudinary_php": "^3.1"
     }
 }

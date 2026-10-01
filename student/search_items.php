@@ -1,3 +1,4 @@
+```php
 <?php
 
 session_start();
@@ -33,7 +34,13 @@ $filter = [
 
 if ($search !== "") {
 
-    $filter["$or"] = [
+    /*
+     * IMPORTANT:
+     * Use '$or' with single quotes so PHP does not
+     * interpret $or as a PHP variable.
+     */
+
+    $filter['$or'] = [
 
         [
             "item_name" => [
@@ -59,6 +66,10 @@ if ($search !== "") {
     ];
 }
 
+
+/* ==============================
+   GET ITEMS
+   ============================== */
 
 $items = $reports->find(
     $filter,
@@ -254,6 +265,12 @@ $items = $reports->find(
 
             $imagePath = $item["image_path"] ?? "";
 
+            $itemName = $item["item_name"] ?? "Unnamed Item";
+
+            $description = $item["description"] ?? "No description provided.";
+
+            $location = $item["location"] ?? "Location not provided.";
+
         ?>
 
             <article class="item-card">
@@ -267,7 +284,7 @@ $items = $reports->find(
 
                         <img
                             src="../<?php echo htmlspecialchars($imagePath); ?>"
-                            alt="<?php echo htmlspecialchars($item["item_name"]); ?>"
+                            alt="<?php echo htmlspecialchars($itemName); ?>"
                         >
 
                     <?php else: ?>
@@ -289,7 +306,7 @@ $items = $reports->find(
 
                     <span class="item-type-badge">
 
-                        <?php echo $item["type"] === "found"
+                        <?php echo ($item["type"] ?? "") === "found"
                             ? "FOUND"
                             : "LOST"; ?>
 
@@ -305,16 +322,16 @@ $items = $reports->find(
                     <div class="item-card-title-row">
 
                         <h3>
-                            <?php echo htmlspecialchars(
-                                $item["item_name"]
-                            ); ?>
+                            <?php echo htmlspecialchars($itemName); ?>
                         </h3>
 
                         <span class="status
                             <?php echo htmlspecialchars($status); ?>">
+
                             <?php echo htmlspecialchars(
                                 ucfirst($status)
                             ); ?>
+
                         </span>
 
                     </div>
@@ -322,9 +339,7 @@ $items = $reports->find(
 
                     <p class="item-description">
 
-                        <?php echo htmlspecialchars(
-                            $item["description"]
-                        ); ?>
+                        <?php echo htmlspecialchars($description); ?>
 
                     </p>
 
@@ -332,12 +347,15 @@ $items = $reports->find(
                     <div class="item-details">
 
                         <div>
+
                             📍
+
                             <span>
-                                <?php echo htmlspecialchars(
-                                    $item["location"]
-                                ); ?>
+
+                                <?php echo htmlspecialchars($location); ?>
+
                             </span>
+
                         </div>
 
 
@@ -349,7 +367,7 @@ $items = $reports->find(
 
                                 <?php
 
-                                if ($item["type"] === "lost") {
+                                if (($item["type"] ?? "") === "lost") {
 
                                     echo htmlspecialchars(
                                         $item["date_lost"] ?? "Not provided"
@@ -360,6 +378,7 @@ $items = $reports->find(
                                     echo htmlspecialchars(
                                         $item["date_found"] ?? "Not provided"
                                     );
+
                                 }
 
                                 ?>
@@ -372,7 +391,7 @@ $items = $reports->find(
 
 
                     <?php if (
-                        $item["type"] === "found" &&
+                        ($item["type"] ?? "") === "found" &&
                         $status === "pending"
                     ): ?>
 
@@ -382,8 +401,11 @@ $items = $reports->find(
                                 (string) $item["_id"]
                             ); ?>"
                         >
+
                             🙋 Claim This Item
+
                             <span>→</span>
+
                         </a>
 
                     <?php endif; ?>
@@ -401,9 +423,11 @@ $items = $reports->find(
             <div class="empty-results">
 
                 <div class="empty-icon">
+
                     <?php echo $type === "found"
                         ? "🎒"
                         : "📦"; ?>
+
                 </div>
 
                 <h2>

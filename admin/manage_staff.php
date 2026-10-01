@@ -1,3 +1,4 @@
+```php
 <?php
 
 session_start();
@@ -45,17 +46,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     "role" => "staff"
                 ]);
 
-                $message = "Staff account deleted successfully.";
+                $message =
+                    "Staff account deleted successfully.";
 
             } else {
 
-                $message = "Staff account not found.";
+                $message =
+                    "Staff account not found.";
 
             }
 
         } catch (Exception $e) {
 
-            $message = "Unable to delete staff account.";
+            $message =
+                "Unable to delete staff account.";
 
         }
     }
@@ -155,6 +159,7 @@ body {
         rgba(40,20,60,.20);
 }
 
+
 .brand {
 
     display: flex;
@@ -164,10 +169,10 @@ body {
     gap: 14px;
 }
 
+
 .brand-icon {
 
     width: 46px;
-
     height: 46px;
 
     border-radius: 14px;
@@ -184,12 +189,14 @@ body {
     font-size: 20px;
 }
 
+
 .brand h1 {
 
     margin: 0;
 
     font-size: 19px;
 }
+
 
 .brand small {
 
@@ -199,6 +206,7 @@ body {
 
     letter-spacing: 1px;
 }
+
 
 .logout {
 
@@ -230,6 +238,7 @@ body {
     overflow-x: auto;
 }
 
+
 .nav a {
 
     color: #766a80;
@@ -247,11 +256,13 @@ body {
     transition: .2s;
 }
 
+
 .nav a:hover {
 
     color: #7c3aed;
 
 }
+
 
 .nav a.active {
 
@@ -275,6 +286,7 @@ body {
     padding: 40px 25px;
 }
 
+
 .page-header {
 
     display: flex;
@@ -286,12 +298,14 @@ body {
     margin-bottom: 30px;
 }
 
+
 .page-header h2 {
 
     margin: 0 0 6px;
 
     font-size: 30px;
 }
+
 
 .page-header p {
 
@@ -337,11 +351,15 @@ body {
     box-shadow:
         0 8px 20px
         rgba(124,58,237,.20);
+
+    transition: .2s;
 }
+
 
 .create-btn:hover {
 
-    transform: translateY(-1px);
+    transform:
+        translateY(-1px);
 
 }
 
@@ -408,9 +426,11 @@ body {
         box-shadow .2s;
 }
 
+
 .staff-card:hover {
 
-    transform: translateY(-3px);
+    transform:
+        translateY(-3px);
 
     box-shadow:
         0 18px 40px
@@ -433,6 +453,7 @@ body {
     margin-bottom: 22px;
 }
 
+
 .profile-picture {
 
     width: 68px;
@@ -445,7 +466,31 @@ body {
 
     border:
         4px solid #ede9fe;
+
+    display: block;
+
+    background: #f3effb;
 }
+
+
+.profile-picture-fallback {
+
+    width: 68px;
+
+    height: 68px;
+
+    border-radius: 50%;
+
+    object-fit: cover;
+
+    border:
+        4px solid #ede9fe;
+
+    background: #f3effb;
+
+    display: none;
+}
+
 
 .profile-placeholder {
 
@@ -476,12 +521,14 @@ body {
         4px solid #ede9fe;
 }
 
+
 .profile-info h3 {
 
     margin: 0 0 5px;
 
     font-size: 18px;
 }
+
 
 .profile-info p {
 
@@ -491,6 +538,7 @@ body {
 
     font-size: 12px;
 }
+
 
 .role-badge {
 
@@ -531,6 +579,7 @@ body {
     margin-bottom: 10px;
 }
 
+
 .stats {
 
     display: grid;
@@ -542,6 +591,7 @@ body {
 
     margin-bottom: 20px;
 }
+
 
 .stat {
 
@@ -557,6 +607,7 @@ body {
     text-align: center;
 }
 
+
 .stat strong {
 
     display: block;
@@ -565,6 +616,7 @@ body {
 
     color: #3a2948;
 }
+
 
 .stat span {
 
@@ -581,10 +633,12 @@ body {
     text-transform: uppercase;
 }
 
+
 .stat.approved strong {
 
     color: #16a34a;
 }
+
 
 .stat.rejected strong {
 
@@ -612,6 +666,7 @@ body {
         1px solid #eee8f5;
 }
 
+
 .action-btn {
 
     border: 0;
@@ -635,12 +690,14 @@ body {
     gap: 6px;
 }
 
+
 .activity-btn {
 
     background: #f1eafd;
 
     color: #6d28a8;
 }
+
 
 .edit-btn {
 
@@ -649,10 +706,12 @@ body {
     color: #3730a3;
 }
 
+
 .edit-btn:hover {
 
     background: #c7d2fe;
 }
+
 
 .delete-btn {
 
@@ -661,10 +720,12 @@ body {
     color: #b91c1c;
 }
 
+
 .delete-btn:hover {
 
     background: #fecaca;
 }
+
 
 .delete-form {
 
@@ -692,6 +753,7 @@ body {
     color: #81758c;
 }
 
+
 .empty i {
 
     font-size: 45px;
@@ -713,15 +775,18 @@ body {
         padding: 18px;
     }
 
+
     .nav {
 
         padding: 0 10px;
     }
 
+
     .container {
 
         padding: 25px 15px;
     }
+
 
     .page-header {
 
@@ -732,10 +797,12 @@ body {
         gap: 18px;
     }
 
+
     .page-header h2 {
 
         font-size: 25px;
     }
+
 
     .stats {
 
@@ -743,12 +810,14 @@ body {
             repeat(2, 1fr);
     }
 
+
     .delete-form {
 
         margin-left: 0;
 
         width: 100%;
     }
+
 
     .delete-form .action-btn {
 
@@ -896,7 +965,11 @@ body {
             <i class="fa-solid fa-circle-check"></i>
 
             <?php
-            echo htmlspecialchars($message);
+
+            echo htmlspecialchars(
+                $message
+            );
+
             ?>
 
         </div>
@@ -911,6 +984,7 @@ body {
 
     $hasStaff = false;
 
+
     foreach ($staffUsers as $staff):
 
         $hasStaff = true;
@@ -921,7 +995,7 @@ body {
            ================================================= */
 
         $staffId =
-            (string) $staff["_id"];
+            (string)$staff["_id"];
 
 
         /* =================================================
@@ -931,14 +1005,39 @@ body {
         $profileImage =
             $staff["profile_picture"] ?? "";
 
+        $profileImage =
+            trim((string)$profileImage);
 
-        if ($profileImage !== "") {
+
+        /*
+         * IMPORTANT:
+         *
+         * Cloudinary images already contain:
+         *
+         * https://res.cloudinary.com/...
+         *
+         * Therefore DO NOT add "../"
+         *
+         * Old local images such as:
+         *
+         * uploads/staff/photo.jpg
+         *
+         * still receive "../"
+         */
+
+        if (
+            $profileImage !== "" &&
+            !preg_match(
+                '/^https?:\/\//i',
+                $profileImage
+            )
+        ) {
 
             $profileImage =
                 "../" .
                 ltrim(
                     $profileImage,
-                    "/"
+                    "/\\"
                 );
         }
 
@@ -946,16 +1045,6 @@ body {
         /* =================================================
            APPROVED / REJECTED REPORTS
            ================================================= */
-
-        $approvedReports = 0;
-
-        $rejectedReports = 0;
-
-
-        /*
-         * These use reviewed_by if your staff review
-         * pages save the staff ID there.
-         */
 
         $approvedReports =
             $reports->countDocuments([
@@ -974,11 +1063,6 @@ body {
         /* =================================================
            APPROVED / REJECTED CLAIMS
            ================================================= */
-
-        $approvedClaims = 0;
-
-        $rejectedClaims = 0;
-
 
         $approvedClaims =
             $claims->countDocuments([
@@ -1009,12 +1093,25 @@ body {
                     <img
                         src="<?php
                             echo htmlspecialchars(
-                                $profileImage
+                                $profileImage,
+                                ENT_QUOTES,
+                                "UTF-8"
                             );
                         ?>"
                         class="profile-picture"
-                        alt="Staff profile"
+                        alt="Staff profile picture"
+                        loading="lazy"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                     >
+
+                    <div
+                        class="profile-placeholder"
+                        style="display:none;"
+                    >
+
+                        <i class="fa-solid fa-user"></i>
+
+                    </div>
 
                 <?php else: ?>
 
@@ -1032,9 +1129,11 @@ body {
                     <h3>
 
                         <?php
+
                         echo htmlspecialchars(
                             $staff["name"] ?? "Staff"
                         );
+
                         ?>
 
                     </h3>
@@ -1045,9 +1144,11 @@ body {
                         <i class="fa-solid fa-envelope"></i>
 
                         <?php
+
                         echo htmlspecialchars(
                             $staff["email"] ?? ""
                         );
+
                         ?>
 
                     </p>
@@ -1082,13 +1183,19 @@ body {
                 <div class="stat approved">
 
                     <strong>
+
                         <?php
+
                         echo $approvedReports;
+
                         ?>
+
                     </strong>
 
                     <span>
+
                         Approved Reports
+
                     </span>
 
                 </div>
@@ -1097,13 +1204,19 @@ body {
                 <div class="stat rejected">
 
                     <strong>
+
                         <?php
+
                         echo $rejectedReports;
+
                         ?>
+
                     </strong>
 
                     <span>
+
                         Rejected Reports
+
                     </span>
 
                 </div>
@@ -1112,13 +1225,19 @@ body {
                 <div class="stat approved">
 
                     <strong>
+
                         <?php
+
                         echo $approvedClaims;
+
                         ?>
+
                     </strong>
 
                     <span>
+
                         Approved Claims
+
                     </span>
 
                 </div>
@@ -1127,13 +1246,19 @@ body {
                 <div class="stat rejected">
 
                     <strong>
+
                         <?php
+
                         echo $rejectedClaims;
+
                         ?>
+
                     </strong>
 
                     <span>
+
                         Rejected Claims
+
                     </span>
 
                 </div>
@@ -1260,3 +1385,4 @@ body {
 </body>
 
 </html>
+```

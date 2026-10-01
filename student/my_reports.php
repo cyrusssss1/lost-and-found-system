@@ -28,21 +28,143 @@ $myReports = $reports->find(
     ]
 );
 
+
+/* =========================================================
+   IMAGE URL
+   Supports Cloudinary URLs and local uploads
+   ========================================================= */
+
+function getReportImageUrl($imagePath)
+{
+    if (empty($imagePath)) {
+        return "";
+    }
+
+    $imagePath = trim((string)$imagePath);
+
+    /*
+     * Cloudinary / external image URL
+     */
+    if (
+        str_starts_with($imagePath, "http://") ||
+        str_starts_with($imagePath, "https://")
+    ) {
+        return $imagePath;
+    }
+
+    /*
+     * Local image
+     */
+    return "../" . ltrim($imagePath, "/\\");
+}
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+```
+<meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>My Reports</title>
+<title>
+    My Reports
+</title>
 
-    <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="student.css">
+<link
+    rel="stylesheet"
+    href="../style.css"
+>
+
+<link
+    rel="stylesheet"
+    href="student.css"
+>
+
+<style>
+
+    /* =====================================================
+       REPORT IMAGE
+       ===================================================== */
+
+    .my-report-image {
+        position: relative;
+        width: 100%;
+        height: 230px;
+        overflow: hidden;
+        border-radius: 18px 18px 0 0;
+        background: #f1f5f3;
+    }
+
+    .my-report-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .my-report-image .item-type-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 2;
+    }
+
+
+    /* =====================================================
+       NO PHOTO
+       ===================================================== */
+
+    .no-item-image {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #f1f5f3;
+        color: #7b8a82;
+        font-size: 38px;
+    }
+
+    .no-item-image span {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+
+    /* =====================================================
+       BROKEN PHOTO
+       ===================================================== */
+
+    .image-error-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #f1f5f3;
+        color: #7b8a82;
+        font-size: 38px;
+    }
+
+    .image-error-placeholder span {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+</style>
+```
 
 </head>
 
@@ -50,241 +172,390 @@ $myReports = $reports->find(
 
 <?php include __DIR__ . '/../navbar.php'; ?>
 
-
 <main class="reports-page">
 
+```
+<!-- =====================================================
+     HEADER
+     ===================================================== -->
 
-    <section class="page-title-card">
+<section class="page-title-card">
 
-        <div>
+    <div>
 
-            <span class="report-label">
-                MY ACTIVITY
-            </span>
+        <span class="report-label">
+            MY ACTIVITY
+        </span>
 
-            <h1>
-                My Reports 📋
-            </h1>
+        <h1>
+            My Reports 📋
+        </h1>
 
-            <p>
-                View and track the lost and found items you have reported.
-            </p>
+        <p>
+            View and track the lost and found items you have reported.
+        </p>
 
-        </div>
+    </div>
 
-        <div class="page-title-icon">
-            📋
-        </div>
+    <div class="page-title-icon">
+        📋
+    </div>
 
-    </section>
-
-
-    <section class="reports-grid">
-
-        <?php
-
-        $hasReports = false;
-
-        foreach ($myReports as $report):
-
-            $hasReports = true;
-
-            $status = strtolower($report["status"] ?? "pending");
-
-            $type = strtolower($report["type"] ?? "lost");
-
-            $imagePath = $report["image_path"] ?? "";
-
-        ?>
-
-            <article class="my-report-card">
+</section>
 
 
-                <!-- IMAGE -->
+<!-- =====================================================
+     REPORTS
+     ===================================================== -->
 
-                <div class="my-report-image">
+<section class="reports-grid">
 
-                    <?php if ($imagePath !== ""): ?>
+    <?php
 
-                        <img
-                            src="../<?php echo htmlspecialchars($imagePath); ?>"
-                            alt="<?php echo htmlspecialchars(
-                                $report["item_name"]
-                            ); ?>"
-                        >
+    $hasReports = false;
 
-                    <?php else: ?>
+    foreach ($myReports as $report):
 
-                        <div class="no-item-image">
-
-                            <?php echo $type === "lost"
-                                ? "📦"
-                                : "🎒"; ?>
-
-                            <span>
-                                No photo
-                            </span>
-
-                        </div>
-
-                    <?php endif; ?>
+        $hasReports = true;
 
 
-                    <span class="item-type-badge">
+        /* STATUS */
 
-                        <?php echo $type === "lost"
-                            ? "LOST"
-                            : "FOUND"; ?>
+        $status = strtolower(
+            $report["status"] ?? "pending"
+        );
+
+
+        /* TYPE */
+
+        $type = strtolower(
+            $report["type"] ?? "lost"
+        );
+
+
+        /* =================================================
+           IMAGE
+           ================================================= */
+
+        $imagePath =
+            $report["image_path"]
+            ?? $report["image_url"]
+            ?? $report["photo"]
+            ?? "";
+
+
+        $imageUrl =
+            getReportImageUrl($imagePath);
+
+
+        /* ITEM INFORMATION */
+
+        $itemName =
+            $report["item_name"]
+            ?? "Unnamed Item";
+
+
+        $description =
+            $report["description"]
+            ?? "No description provided.";
+
+
+        $location =
+            $report["location"]
+            ?? "Location not provided.";
+
+    ?>
+
+
+        <article class="my-report-card">
+
+
+            <!-- =================================================
+                 IMAGE
+                 ================================================= -->
+
+            <div class="my-report-image">
+
+
+                <?php if ($imageUrl !== ""): ?>
+
+                    <img
+                        src="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES); ?>"
+                        alt="<?php echo htmlspecialchars($itemName, ENT_QUOTES); ?>"
+                        loading="lazy"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+
+                    <div
+                        class="image-error-placeholder"
+                        style="display:none;"
+                    >
+
+                        📦
+
+                        <span>
+                            Photo unavailable
+                        </span>
+
+                    </div>
+
+
+                <?php else: ?>
+
+
+                    <div class="no-item-image">
+
+                        <?php
+
+                        echo $type === "lost"
+                            ? "📦"
+                            : "🎒";
+
+                        ?>
+
+                        <span>
+                            No photo
+                        </span>
+
+                    </div>
+
+
+                <?php endif; ?>
+
+
+                <span class="item-type-badge">
+
+                    <?php
+
+                    echo $type === "lost"
+                        ? "LOST"
+                        : "FOUND";
+
+                    ?>
+
+                </span>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 CONTENT
+                 ================================================= -->
+
+            <div class="my-report-content">
+
+
+                <div class="my-report-title-row">
+
+                    <h2>
+
+                        <?php
+
+                        echo htmlspecialchars(
+                            $itemName
+                        );
+
+                        ?>
+
+                    </h2>
+
+
+                    <span
+                        class="status <?php echo htmlspecialchars($status); ?>"
+                    >
+
+                        <?php
+
+                        echo htmlspecialchars(
+                            ucfirst($status)
+                        );
+
+                        ?>
 
                     </span>
 
                 </div>
 
 
-                <!-- CONTENT -->
+                <p class="my-report-description">
 
-                <div class="my-report-content">
+                    <?php
 
-                    <div class="my-report-title-row">
+                    echo htmlspecialchars(
+                        $description
+                    );
 
-                        <h2>
-                            <?php echo htmlspecialchars(
-                                $report["item_name"]
-                            ); ?>
-                        </h2>
+                    ?>
 
-                        <span class="status <?php echo htmlspecialchars($status); ?>">
-                            <?php echo htmlspecialchars(
-                                ucfirst($status)
-                            ); ?>
+                </p>
+
+
+                <!-- =================================================
+                     ITEM DETAILS
+                     ================================================= -->
+
+                <div class="report-info-list">
+
+
+                    <div>
+
+                        📍
+
+                        <span>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $location
+                            );
+
+                            ?>
+
                         </span>
 
                     </div>
 
 
-                    <p class="my-report-description">
+                    <div>
 
-                        <?php echo htmlspecialchars(
-                            $report["description"]
-                        ); ?>
+                        📅
 
-                    </p>
+                        <span>
 
+                            <?php
 
-                    <div class="report-info-list">
+                            if ($type === "lost") {
 
-                        <div>
-                            📍
-                            <span>
-                                <?php echo htmlspecialchars(
-                                    $report["location"]
-                                ); ?>
-                            </span>
-                        </div>
+                                echo htmlspecialchars(
+                                    $report["date_lost"]
+                                    ?? "Not provided"
+                                );
 
+                            } else {
 
-                        <div>
+                                echo htmlspecialchars(
+                                    $report["date_found"]
+                                    ?? "Not provided"
+                                );
 
-                            📅
+                            }
 
-                            <span>
+                            ?>
 
-                                <?php
-
-                                if ($type === "lost") {
-
-                                    echo htmlspecialchars(
-                                        $report["date_lost"] ?? "Not provided"
-                                    );
-
-                                } else {
-
-                                    echo htmlspecialchars(
-                                        $report["date_found"] ?? "Not provided"
-                                    );
-                                }
-
-                                ?>
-
-                            </span>
-
-                        </div>
+                        </span>
 
                     </div>
 
 
-                    <?php if (
-                        $status === "approved"
-                    ): ?>
-
-                        <div class="activity-notice approved">
-                            ✓ Your report has been approved.
-                        </div>
-
-                    <?php elseif (
-                        $status === "rejected"
-                    ): ?>
-
-                        <div class="activity-notice rejected">
-                            ! Your report has been rejected.
-                        </div>
-
-                    <?php else: ?>
-
-                        <div class="activity-notice pending">
-                            ⏳ Your report is waiting for review.
-                        </div>
-
-                    <?php endif; ?>
-
-
                 </div>
 
-            </article>
 
-        <?php endforeach; ?>
+                <!-- =================================================
+                     STATUS
+                     ================================================= -->
+
+                <?php if ($status === "approved"): ?>
 
 
-        <?php if (!$hasReports): ?>
+                    <div class="activity-notice approved">
 
-            <div class="empty-results">
+                        ✓ Your report has been approved.
 
-                <div class="empty-icon">
-                    📋
-                </div>
+                    </div>
 
-                <h2>
-                    No Reports Yet
-                </h2>
 
-                <p>
-                    You haven't reported any lost or found items yet.
-                </p>
+                <?php elseif ($status === "rejected"): ?>
 
-                <div class="empty-actions">
 
-                    <a
-                        href="report_lost.php"
-                        class="student-action-button blue"
-                    >
-                        📦 Report Lost Item
-                    </a>
+                    <div class="activity-notice rejected">
 
-                    <a
-                        href="report_found.php"
-                        class="student-action-button green"
-                    >
-                        🎒 Report Found Item
-                    </a>
+                        ! Your report has been rejected.
 
-                </div>
+                    </div>
+
+
+                <?php else: ?>
+
+
+                    <div class="activity-notice pending">
+
+                        ⏳ Your report is waiting for review.
+
+                    </div>
+
+
+                <?php endif; ?>
+
 
             </div>
 
-        <?php endif; ?>
 
-    </section>
+        </article>
 
+
+    <?php endforeach; ?>
+
+
+    <!-- =====================================================
+         NO REPORTS
+         ===================================================== -->
+
+    <?php if (!$hasReports): ?>
+
+
+        <div class="empty-results">
+
+
+            <div class="empty-icon">
+                📋
+            </div>
+
+
+            <h2>
+                No Reports Yet
+            </h2>
+
+
+            <p>
+                You haven't reported any lost or found items yet.
+            </p>
+
+
+            <div class="empty-actions">
+
+
+                <a
+                    href="report_lost.php"
+                    class="student-action-button blue"
+                >
+
+                    📦 Report Lost Item
+
+                </a>
+
+
+                <a
+                    href="report_found.php"
+                    class="student-action-button green"
+                >
+
+                    🎒 Report Found Item
+
+                </a>
+
+
+            </div>
+
+
+        </div>
+
+
+    <?php endif; ?>
+
+
+</section>
+```
 
 </main>
 

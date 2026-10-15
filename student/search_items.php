@@ -1,5 +1,6 @@
 
 <?php
+ob_start();
 session_start();
 
 if (
@@ -19,7 +20,7 @@ $reports = $db->getDatabase()->reports;
 
 /*
 |--------------------------------------------------------------------------
-| Escape output safely
+| Escape HTML output
 |--------------------------------------------------------------------------
 */
 function searchEscape($value): string
@@ -33,9 +34,9 @@ function searchEscape($value): string
 
 /*
 |--------------------------------------------------------------------------
-| Resolve item image URLs
+| Resolve image URLs
 |--------------------------------------------------------------------------
-| Supports Cloudinary HTTPS URLs and older local image paths.
+| Supports Cloudinary URLs and legacy local image paths.
 |--------------------------------------------------------------------------
 */
 function getStudentImageUrl($imagePath): string
@@ -46,7 +47,7 @@ function getStudentImageUrl($imagePath): string
 
     $imagePath = trim($imagePath);
 
-    // Cloudinary or another external HTTP/HTTPS image URL.
+    // External image URL, including Cloudinary.
     if (preg_match('/^https?:\/\//i', $imagePath)) {
         $parts = parse_url($imagePath);
 
@@ -65,18 +66,15 @@ function getStudentImageUrl($imagePath): string
         return $imagePath;
     }
 
-    // Reject protocol-relative URLs.
+    // Do not accept protocol-relative URLs.
     if (str_starts_with($imagePath, "//")) {
         return "";
     }
 
-    // Normalize Windows path separators.
     $imagePath = str_replace("\\", "/", $imagePath);
-
-    // Remove old relative prefixes.
     $imagePath = preg_replace('#^(?:\./)+#', "", $imagePath);
 
-    // Root-relative path.
+    // Root-relative image path.
     if (str_starts_with($imagePath, "/")) {
         return $imagePath;
     }
@@ -90,13 +88,13 @@ function getStudentImageUrl($imagePath): string
         return "/" . $imagePath;
     }
 
-    // Paths relative to the student directory.
+    // Legacy path relative to the student folder.
     return "../" . ltrim($imagePath, "/");
 }
 
 /*
 |--------------------------------------------------------------------------
-| Read search parameters
+| Search parameters
 |--------------------------------------------------------------------------
 */
 $search = trim((string)($_GET["search"] ?? ""));
@@ -106,14 +104,17 @@ if (!in_array($type, ["found", "lost"], true)) {
     $type = "found";
 }
 
-// Prevent excessively long search input.
-$search = mb_substr($search, 0, 150);
+if (function_exists("mb_substr")) {
+    $search = mb_substr($search, 0, 150);
+} else {
+    $search = substr($search, 0, 150);
+}
 
 /*
 |--------------------------------------------------------------------------
-| Build the shared report search
+| Build MongoDB search query
 |--------------------------------------------------------------------------
-| Searches reports from all users, not only the logged-in student.
+| Searches reports from all users.
 |--------------------------------------------------------------------------
 */
 $filter = [
@@ -147,11 +148,7 @@ if ($search !== "") {
 
 /*
 |--------------------------------------------------------------------------
-| Retrieve reports
-|--------------------------------------------------------------------------
-| Students can search reports created by other accounts.
-| Rejected reports are excluded from public search results.
-| Pending reports remain visible with their status.
+| Fetch reports
 |--------------------------------------------------------------------------
 */
 $items = $reports->find(
@@ -170,12 +167,11 @@ $items = $reports->find(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>
-        <?php echo $type === "found"
+    <title><?php
+        echo $type === "found"
             ? "Search Found Items"
-            : "Search Lost Items"; ?>
-        | Lost &amp; Found
-    </title>
+            : "Search Lost Items";
+    ?> | Lost &amp; Found</title>
 
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="student.css">
@@ -221,6 +217,10 @@ $items = $reports->find(
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .item-image img.image-failed {
+            display: none;
         }
 
         .no-item-image {
@@ -342,18 +342,6 @@ $items = $reports->find(
             background: #1d4ed8;
         }
 
-        .search-error {
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 12px;
-            background: #fff7ed;
-            color: #9a3412;
-        }
-
-        .item-image img.image-failed {
-            display: none;
-        }
-
         .empty-results {
             grid-column: 1 / -1;
             padding: 45px 20px;
@@ -407,7 +395,6 @@ $items = $reports->find(
 
 <main class="search-page">
 
-    <!-- PAGE HEADER -->
     <section class="search-header <?php
         echo $type === "found"
             ? "found-search-header"
@@ -434,7 +421,6 @@ $items = $reports->find(
         </div>
     </section>
 
-    <!-- LOST / FOUND SWITCH -->
     <div class="search-tabs">
         <a
             href="search_items.php?type=found"
@@ -451,7 +437,6 @@ $items = $reports->find(
         </a>
     </div>
 
-    <!-- SEARCH FORM -->
     <section class="search-box">
         <form method="GET" action="search_items.php">
             <input
@@ -485,7 +470,6 @@ $items = $reports->find(
         </form>
     </section>
 
-    <!-- RESULTS HEADING -->
     <div class="results-heading">
         <div>
             <h2>
@@ -502,7 +486,6 @@ $items = $reports->find(
         </div>
     </div>
 
-    <!-- RESULTS GRID -->
     <section class="item-grid">
 
         <?php
@@ -510,22 +493,25 @@ $items = $reports->find(
 
         foreach ($items as $item):
 
-            $status = strtolower((string)($item["status"] ?? "pending"));
+            $status = strtolower(
+                (string)($item["status"] ?? "pending")
+            );
 
-            // Do not display rejected reports in public search.
             if ($status === "rejected") {
                 continue;
             }
 
             $hasItems = true;
 
-            $itemType = strtolower((string)($item["type"] ?? $type));
+            $itemType = strtolower(
+                (string)($item["type"] ?? $type)
+            );
 
             $itemName = $item["item_name"] ?? "Unknown Item";
-            $description = $item["description"] ?? "No description provided.";
+            $description = $item["description"]
+                ?? "No description provided.";
             $location = $item["location"] ?? "Not provided";
 
-            // Support current and legacy image fields.
             $imagePath = $item["image_path"]
                 ?? $item["image_url"]
                 ?? $item["photo"]
@@ -537,7 +523,6 @@ $items = $reports->find(
                 ? ($item["date_lost"] ?? "Not provided")
                 : ($item["date_found"] ?? "Not provided");
 
-            // Convert MongoDB BSON date to a readable date.
             if ($itemDate instanceof MongoDB\BSON\UTCDateTime) {
                 $itemDate = $itemDate
                     ->toDateTime()
@@ -551,7 +536,6 @@ $items = $reports->find(
 
             <article class="item-card">
 
-                <!-- ITEM PHOTO -->
                 <div class="item-image">
 
                     <?php if ($imageUrl !== ""): ?>
@@ -582,7 +566,6 @@ $items = $reports->find(
                     </span>
                 </div>
 
-                <!-- ITEM DETAILS -->
                 <div class="item-card-content">
 
                     <div class="item-card-title-row">
@@ -658,4 +641,3 @@ $items = $reports->find(
 
 </body>
 </html>
-```

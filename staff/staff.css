@@ -1,96 +1,128 @@
-/* =========================================================
-   STAFF MANAGEMENT SYSTEM
    ========================================================= */
 
-* {
-    box-sizing: border-box;
+.staff-body {
+    min-width: 320px;
+    -webkit-font-smoothing: antialiased;
 }
 
-body.staff-body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f3f6f4;
-    color: #17201a;
+.staff-main {
+    min-width: 0;
 }
-
-
-/* =========================================================
-   LAYOUT
-   ========================================================= */
-
-.staff-layout {
-    min-height: 100vh;
-    display: flex;
-}
-
-
-/* =========================================================
-   SIDEBAR
-   ========================================================= */
 
 .staff-sidebar {
-    width: 255px;
-    min-height: 100vh;
-    background: linear-gradient(
-        180deg,
-        #0e2b1c 0%,
-        #123723 100%
-    );
-    color: white;
-    display: flex;
-    flex-direction: column;
-    padding: 28px 17px 18px;
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 100;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.22) transparent;
 }
 
-
-/* BRAND */
-
-.staff-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 10px 25px;
-    border-bottom: 1px solid rgba(255,255,255,.10);
+.staff-nav a:focus-visible,
+.staff-logout:focus-visible,
+.staff-main a:focus-visible,
+.staff-main button:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
 }
 
-.staff-brand-icon {
-    width: 43px;
-    height: 43px;
-    border-radius: 12px;
-    background: #26965d;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 8px 20px rgba(0,0,0,.18);
+.staff-nav a,
+.staff-logout,
+.staff-button,
+.staff-table a,
+.staff-main button {
+    transition:
+        color .18s ease,
+        background-color .18s ease,
+        border-color .18s ease,
+        box-shadow .18s ease,
+        transform .18s ease;
 }
 
-.staff-brand h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 800;
+.staff-user {
+    overflow-wrap: anywhere;
 }
 
-.staff-brand span {
-    display: block;
-    margin-top: 4px;
-    font-size: 9px;
-    color: #8ca697;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+.staff-user-top > div:last-child {
+    min-width: 0;
 }
 
-
-/* NAV */
-
-.staff-nav {
-    padding-top: 28px;
+.staff-user strong {
+    overflow-wrap: anywhere;
 }
 
-.staff-nav-label {
+@media (max-width: 1000px) {
+    .staff-main {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+@media (max-width: 760px) {
+    .staff-sidebar {
+        width: 220px;
+    }
+
+    .staff-main {
+        margin-left: 220px;
+        width: calc(100% - 220px);
+        padding: 22px 18px 35px;
+    }
+
+    .staff-topbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 25px;
+    }
+}
+
+@media (max-width: 560px) {
+    .staff-layout {
+        display: block;
+    }
+
+    .staff-sidebar {
+        position: relative;
+        width: 100%;
+        min-height: auto;
+        max-height: none;
+        padding: 17px 14px;
+    }
+
+    .staff-brand {
+        padding-bottom: 15px;
+    }
+
+    .staff-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding-top: 15px;
+    }
+
+    .staff-nav-label {
+        flex-basis: 100%;
+        margin: 8px 5px 3px;
+    }
+
+    .staff-nav a {
+        flex: 1 1 135px;
+        margin-bottom: 0;
+        padding: 9px;
+    }
+
+    .staff-nav-icon {
+        flex: 0 0 29px;
+    }
+
+    .staff-user {
+        margin-top: 15px;
+    }
+
+    .staff-main {
+        margin-left: 0;
+        width: 100%;
+        padding: 20px 14px 30px;
+    }
+
+    .staff-topbar {
+        margin-bottom: 20px;
+    }

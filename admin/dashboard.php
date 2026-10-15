@@ -62,8 +62,8 @@ function safeStatus($value) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | Lost &amp; Found</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Assumes staff.css is stored in the project root, beside the staff/ and admin/ folders. -->
-    <link rel="stylesheet" href="../staff.css">
+    <!-- Load the shared Staff stylesheet from the staff folder. -->
+    <link rel="stylesheet" href="../staff/staff.css">
     <style>
         /* Admin-only additions. The main layout and components reuse staff.css. */
         .admin-role-pill {

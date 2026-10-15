@@ -887,139 +887,88 @@ body.staff-body {
         grid-column: auto;
     }
 }
-
-
-
 /* =========================================================
-   SHARED STAFF / ADMIN POLISH
-   Keeps the existing staff design and supports the Admin
-   dashboard using the same sidebar layout.
+   SHARED BLUE UI FINISH — aligns Staff and Admin with Student
+   Preserves existing page structure, tables, modals and controls.
    ========================================================= */
-
+:root {
+    --ui-primary: #2563eb;
+    --ui-primary-dark: #1d4ed8;
+    --ui-primary-soft: #eff6ff;
+    --ui-border: #e2e8f0;
+    --ui-text: #0f172a;
+    --ui-muted: #64748b;
+}
 .staff-body {
-    min-width: 320px;
-    -webkit-font-smoothing: antialiased;
+    background: #f5f7fb;
+    color: var(--ui-text);
 }
-
-.staff-main {
-    min-width: 0;
-}
-
 .staff-sidebar {
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,.22) transparent;
+    background: linear-gradient(180deg, #0f172a 0%, #172554 100%);
 }
-
-.staff-nav a:focus-visible,
-.staff-logout:focus-visible,
-.staff-main a:focus-visible,
-.staff-main button:focus-visible {
-    outline: 3px solid #93c5fd;
-    outline-offset: 3px;
+.staff-brand-icon,
+.staff-avatar,
+.staff-nav a.active .staff-nav-icon {
+    background: var(--ui-primary) !important;
 }
-
-.staff-nav a,
-.staff-logout,
-.staff-button,
-.staff-table a,
-.staff-main button {
-    transition:
-        color .18s ease,
-        background-color .18s ease,
-        border-color .18s ease,
-        box-shadow .18s ease,
-        transform .18s ease;
+.staff-nav a.active,
+.staff-nav a:hover {
+    color: #fff;
 }
-
-.staff-user {
-    overflow-wrap: anywhere;
+.staff-nav a.active {
+    background: rgba(37, 99, 235, .17) !important;
+    border-color: rgba(96, 165, 250, .22);
 }
-
-.staff-user-top > div:last-child {
-    min-width: 0;
+.staff-main {
+    background: #f5f7fb;
 }
-
-.staff-user strong {
-    overflow-wrap: anywhere;
+.staff-stat-card,
+.staff-panel,
+.staff-modal-content,
+.staff-table-wrap {
+    border-color: var(--ui-border);
 }
-
-@media (max-width: 1000px) {
-    .staff-main {
-        padding-left: 24px;
-        padding-right: 24px;
-    }
+.staff-stat-icon {
+    background: var(--ui-primary-soft) !important;
+    color: var(--ui-primary) !important;
 }
-
+.staff-view-all,
+.staff-breadcrumb strong {
+    color: var(--ui-primary);
+}
+.staff-approve {
+    background: #16a34a;
+}
+.staff-reject {
+    background: #dc2626;
+}
+.staff-table th {
+    background: #f8fafc;
+    color: #64748b;
+}
+.staff-table tbody tr:hover {
+    background: #f8fbff;
+}
+.staff-date {
+    border-color: var(--ui-border);
+}
 @media (max-width: 760px) {
     .staff-sidebar {
         width: 220px;
     }
-
     .staff-main {
         margin-left: 220px;
         width: calc(100% - 220px);
-        padding: 22px 18px 35px;
-    }
-
-    .staff-topbar {
-        align-items: flex-start;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-bottom: 25px;
     }
 }
-
 @media (max-width: 560px) {
-    .staff-layout {
-        display: block;
-    }
-
     .staff-sidebar {
         position: relative;
         width: 100%;
         min-height: auto;
-        max-height: none;
-        padding: 17px 14px;
     }
-
-    .staff-brand {
-        padding-bottom: 15px;
-    }
-
-    .staff-nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        padding-top: 15px;
-    }
-
-    .staff-nav-label {
-        flex-basis: 100%;
-        margin: 8px 5px 3px;
-    }
-
-    .staff-nav a {
-        flex: 1 1 135px;
-        margin-bottom: 0;
-        padding: 9px;
-    }
-
-    .staff-nav-icon {
-        flex: 0 0 29px;
-    }
-
-    .staff-user {
-        margin-top: 15px;
-    }
-
     .staff-main {
         margin-left: 0;
         width: 100%;
-        padding: 20px 14px 30px;
-    }
-
-    .staff-topbar {
-        margin-bottom: 20px;
     }
 }

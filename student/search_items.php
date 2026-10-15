@@ -1,4 +1,4 @@
-
+```php
 <?php
 session_start();
 
@@ -10,7 +10,7 @@ if (
     exit;
 }
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . "/../vendor/autoload.php";
 
 use Zayncaleb\Lostandfoundsystem\Database;
 
@@ -33,10 +33,9 @@ function searchEscape($value): string
 
 /*
 |--------------------------------------------------------------------------
-| Resolve image URL
+| Resolve item image URLs
 |--------------------------------------------------------------------------
-| Cloudinary URLs are used directly.
-| Relative local paths are resolved from the project root.
+| Supports Cloudinary HTTPS URLs and older local image paths.
 |--------------------------------------------------------------------------
 */
 function getStudentImageUrl($imagePath): string
@@ -47,34 +46,42 @@ function getStudentImageUrl($imagePath): string
 
     $imagePath = trim($imagePath);
 
-    // Cloudinary or another external image URL.
-    if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
-        $scheme = strtolower((string)parse_url($imagePath, PHP_URL_SCHEME));
+    // Cloudinary or another external HTTP/HTTPS image URL.
+    if (preg_match('/^https?:\/\//i', $imagePath)) {
+        $parts = parse_url($imagePath);
 
-        return in_array($scheme, ["http", "https"], true)
-            ? $imagePath
-            : "";
+        if (
+            !$parts ||
+            empty($parts["host"]) ||
+            !in_array(
+                strtolower($parts["scheme"] ?? ""),
+                ["http", "https"],
+                true
+            )
+        ) {
+            return "";
+        }
+
+        return $imagePath;
     }
 
-    // Do not allow unexpected URL schemes or protocol-relative URLs.
+    // Reject protocol-relative URLs.
     if (str_starts_with($imagePath, "//")) {
         return "";
     }
 
-    // Normalize Windows separators.
+    // Normalize Windows path separators.
     $imagePath = str_replace("\\", "/", $imagePath);
 
     // Remove old relative prefixes.
-    while (str_starts_with($imagePath, "./")) {
-        $imagePath = substr($imagePath, 2);
-    }
+    $imagePath = preg_replace('#^(?:\./)+#', "", $imagePath);
 
-    // A root-relative path is already relative to the website root.
+    // Root-relative path.
     if (str_starts_with($imagePath, "/")) {
         return $imagePath;
     }
 
-    // A path stored as "student/uploads/..." is project-root relative.
+    // Project-root-relative paths.
     if (
         str_starts_with($imagePath, "student/") ||
         str_starts_with($imagePath, "uploads/") ||
@@ -83,7 +90,7 @@ function getStudentImageUrl($imagePath): string
         return "/" . $imagePath;
     }
 
-    // Existing local paths such as "uploads/item.jpg".
+    // Paths relative to the student directory.
     return "../" . ltrim($imagePath, "/");
 }
 
@@ -99,13 +106,14 @@ if (!in_array($type, ["found", "lost"], true)) {
     $type = "found";
 }
 
+// Prevent excessively long search input.
+$search = mb_substr($search, 0, 150);
+
 /*
 |--------------------------------------------------------------------------
-| Build shared report search
+| Build the shared report search
 |--------------------------------------------------------------------------
-| IMPORTANT:
-| Do not filter by user_id. This allows students to see reports
-| submitted by other accounts in the same MongoDB collection.
+| Searches reports from all users, not only the logged-in student.
 |--------------------------------------------------------------------------
 */
 $filter = [
@@ -115,7 +123,6 @@ $filter = [
 if ($search !== "") {
     $safeSearch = preg_quote($search, "/");
 
-    // Single quotes are important: "$or" would be treated as a PHP variable.
     $filter['$or'] = [
         [
             "item_name" => [
@@ -140,11 +147,11 @@ if ($search !== "") {
 
 /*
 |--------------------------------------------------------------------------
-| Retrieve reports from the shared database
+| Retrieve reports
 |--------------------------------------------------------------------------
-| This intentionally does not restrict results to the current student.
-| Statuses are displayed as stored; staff/admin approval rules are
-| not changed by this search-page fix.
+| Students can search reports created by other accounts.
+| Rejected reports are excluded from public search results.
+| Pending reports remain visible with their status.
 |--------------------------------------------------------------------------
 */
 $items = $reports->find(
@@ -174,13 +181,39 @@ $items = $reports->find(
     <link rel="stylesheet" href="student.css">
 
     <style>
+        .search-page {
+            width: min(1200px, 94%);
+            margin: 28px auto 50px;
+        }
+
+        .item-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 24px;
+            margin-top: 22px;
+        }
+
+        .item-card {
+            min-width: 0;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            box-shadow: 0 5px 18px rgba(15, 23, 42, .06);
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+
+        .item-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, .1);
+        }
+
         .item-image {
             position: relative;
             width: 100%;
             height: 220px;
             overflow: hidden;
             background: #f1f5f9;
-            border-radius: 14px 14px 0 0;
         }
 
         .item-image img {
@@ -206,13 +239,17 @@ $items = $reports->find(
             font-size: 13px;
         }
 
+        .no-item-image[hidden] {
+            display: none !important;
+        }
+
         .item-type-badge {
             position: absolute;
             top: 12px;
             left: 12px;
-            padding: 6px 10px;
+            padding: 6px 11px;
             border-radius: 999px;
-            background: rgba(15, 23, 42, .85);
+            background: rgba(15, 23, 42, .86);
             color: white;
             font-size: 11px;
             font-weight: 800;
@@ -233,18 +270,24 @@ $items = $reports->find(
 
         .item-card-title-row h3 {
             margin: 0;
+            color: #0f172a;
             overflow-wrap: anywhere;
         }
 
         .item-description {
+            margin: 12px 0;
+            color: #475569;
             overflow-wrap: anywhere;
             white-space: pre-line;
+            line-height: 1.6;
         }
 
         .item-details {
             display: grid;
-            gap: 9px;
+            gap: 10px;
             margin-top: 14px;
+            color: #475569;
+            font-size: 14px;
         }
 
         .item-details > div {
@@ -254,12 +297,49 @@ $items = $reports->find(
             overflow-wrap: anywhere;
         }
 
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: capitalize;
+        }
+
+        .status.approved {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
         .claim-button {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 12px;
             margin-top: 18px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 700;
+            text-decoration: none;
+            transition: background .2s ease;
+        }
+
+        .claim-button:hover {
+            background: #1d4ed8;
         }
 
         .search-error {
@@ -274,9 +354,48 @@ $items = $reports->find(
             display: none;
         }
 
+        .empty-results {
+            grid-column: 1 / -1;
+            padding: 45px 20px;
+            text-align: center;
+            background: #fff;
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+        }
+
+        .empty-icon {
+            margin-bottom: 12px;
+            font-size: 48px;
+        }
+
+        .empty-results h2 {
+            margin: 0 0 8px;
+            color: #0f172a;
+        }
+
+        .empty-results p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        @media (max-width: 900px) {
+            .item-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 600px) {
+            .item-grid {
+                grid-template-columns: 1fr;
+            }
+
             .item-image {
-                height: 200px;
+                height: 220px;
+            }
+
+            .search-page {
+                width: 92%;
+                margin-top: 18px;
             }
         }
     </style>
@@ -284,7 +403,7 @@ $items = $reports->find(
 
 <body class="student-dashboard">
 
-<?php include __DIR__ . '/../navbar.php'; ?>
+<?php include __DIR__ . "/../navbar.php"; ?>
 
 <main class="search-page">
 
@@ -390,16 +509,23 @@ $items = $reports->find(
         $hasItems = false;
 
         foreach ($items as $item):
+
+            $status = strtolower((string)($item["status"] ?? "pending"));
+
+            // Do not display rejected reports in public search.
+            if ($status === "rejected") {
+                continue;
+            }
+
             $hasItems = true;
 
             $itemType = strtolower((string)($item["type"] ?? $type));
-            $status = strtolower((string)($item["status"] ?? "pending"));
 
             $itemName = $item["item_name"] ?? "Unknown Item";
             $description = $item["description"] ?? "No description provided.";
             $location = $item["location"] ?? "Not provided";
 
-            // Support the current field and common legacy image field names.
+            // Support current and legacy image fields.
             $imagePath = $item["image_path"]
                 ?? $item["image_url"]
                 ?? $item["photo"]
@@ -411,6 +537,13 @@ $items = $reports->find(
                 ? ($item["date_lost"] ?? "Not provided")
                 : ($item["date_found"] ?? "Not provided");
 
+            // Convert MongoDB BSON date to a readable date.
+            if ($itemDate instanceof MongoDB\BSON\UTCDateTime) {
+                $itemDate = $itemDate
+                    ->toDateTime()
+                    ->format("M j, Y");
+            }
+
             $itemId = isset($item["_id"])
                 ? (string)$item["_id"]
                 : "";
@@ -420,7 +553,9 @@ $items = $reports->find(
 
                 <!-- ITEM PHOTO -->
                 <div class="item-image">
+
                     <?php if ($imageUrl !== ""): ?>
+
                         <img
                             src="<?php echo searchEscape($imageUrl); ?>"
                             alt="<?php echo searchEscape($itemName); ?>"
@@ -432,11 +567,14 @@ $items = $reports->find(
                             📷
                             <span>Photo unavailable</span>
                         </div>
+
                     <?php else: ?>
+
                         <div class="no-item-image">
                             <?php echo $itemType === "found" ? "🎒" : "📦"; ?>
                             <span>No photo uploaded</span>
                         </div>
+
                     <?php endif; ?>
 
                     <span class="item-type-badge">
@@ -448,7 +586,9 @@ $items = $reports->find(
                 <div class="item-card-content">
 
                     <div class="item-card-title-row">
-                        <h3><?php echo searchEscape($itemName); ?></h3>
+                        <h3>
+                            <?php echo searchEscape($itemName); ?>
+                        </h3>
 
                         <span class="status <?php echo searchEscape($status); ?>">
                             <?php echo searchEscape(ucfirst($status)); ?>
@@ -471,7 +611,11 @@ $items = $reports->find(
                         </div>
                     </div>
 
-                    <?php if ($itemType === "found" && $status !== "rejected" && $itemId !== ""): ?>
+                    <?php if (
+                        $itemType === "found" &&
+                        $status === "approved" &&
+                        $itemId !== ""
+                    ): ?>
                         <a
                             class="claim-button"
                             href="claim_item.php?id=<?php echo urlencode($itemId); ?>"
@@ -487,6 +631,7 @@ $items = $reports->find(
         <?php endforeach; ?>
 
         <?php if (!$hasItems): ?>
+
             <div class="empty-results">
                 <div class="empty-icon">
                     <?php echo $type === "found" ? "🎒" : "📦"; ?>
@@ -499,10 +644,12 @@ $items = $reports->find(
                         No matching items were found. Try another item name,
                         description, or location.
                     <?php else: ?>
-                        No reports are currently available in this section.
+                        No approved or pending reports are available in this
+                        section yet.
                     <?php endif; ?>
                 </p>
             </div>
+
         <?php endif; ?>
 
     </section>
@@ -511,3 +658,4 @@ $items = $reports->find(
 
 </body>
 </html>
+```

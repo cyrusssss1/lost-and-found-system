@@ -14,6 +14,7 @@ require_once __DIR__ . "/../vendor/autoload.php";
 
 use Zayncaleb\Lostandfoundsystem\Database;
 
+
 $db = new Database();
 $database = $db->getDatabase();
 

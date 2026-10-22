@@ -130,9 +130,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
  * Read credentials from Render environment variables.
  */
 
-$cloudName = getenv("di5zie7e") ?: "";
-$apiKey = getenv("789654872826227") ?: "";
-$apiSecret = getenv("iKlrC1ZfIuussv5oLXPyBpiFhZ4") ?: "";
+$cloudName = getenv("CLOUDINARY_CLOUD_NAME") ?: "";
+$apiKey = getenv("CLOUDINARY_API_KEY") ?: "";
+$apiSecret = getenv("CLOUDINARY_API_SECRET") ?: "";
 
 if (
     $cloudName === " di5zie7e" ||

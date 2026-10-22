@@ -126,28 +126,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                            
 /*
+ * ==========================================
  * CLOUDINARY CREDENTIALS
+ * ==========================================
  * Read credentials from Render environment variables.
+ * Do not hardcode Cloudinary credentials in this file.
  */
 
-$cloudName = getenv("di5zie7e") ?: "";
-$apiKey = getenv("789654872826227") ?: "";
-$apiSecret = getenv("iKlrC1ZfIuussv5oLXPyBpiFhZ4") ?: "";
+$cloudName = trim((string) (getenv("di5zie7e") ?: ($_ENV["CLOUDINARY_CLOUD_NAME"] ?? "")));
+$apiKey = trim((string) (getenv("789654872826227") ?: ($_ENV["CLOUDINARY_API_KEY"] ?? "")));
+$apiSecret = trim((string) (getenv("iKlrC1ZfIuussv5oLXPyBpiFhZ4") ?: ($_ENV["CLOUDINARY_API_SECRET"] ?? "")));
 
-if (
-    $cloudName === "" ||
-    $apiKey === "" ||
-    $apiSecret === "" ||
-) {
+if ($cloudName === "" || $apiKey === "" || $apiSecret === "") {
     throw new Exception(
-        "Cloudinary is not configured. Check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment variables."
+        "Cloudinary credentials are missing. Check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in Render."
     );
 }
 
-/*
- * Configure Cloudinary
- */
-
+/* Configure Cloudinary */
 Configuration::instance([
     "cloud" => [
         "cloud_name" => $cloudName,
@@ -158,7 +154,6 @@ Configuration::instance([
         "secure" => true
     ]
 ]);
-
 
                             /*
                              * Upload image

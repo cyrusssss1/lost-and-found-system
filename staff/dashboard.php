@@ -1,5 +1,7 @@
-
 <?php
+// IMPORTANT: Save this file as UTF-8 without BOM.
+// There must be absolutely nothing before this opening PHP tag.
+
 session_start();
 
 if (
@@ -14,9 +16,16 @@ require_once __DIR__ . "/../vendor/autoload.php";
 
 use Zayncaleb\Lostandfoundsystem\Database;
 
-
 $db = new Database();
 $database = $db->getDatabase();
+
+$users = $database->users;
+$reports = $database->reports;
+$claims = $database->claims;
+
+$role = $_SESSION["role"];
+$name = $_SESSION["name"] ?? ucfirst($role);
+$roleLabel = ucfirst($role);
 
 $users = $database->users;
 $reports = $database->reports;

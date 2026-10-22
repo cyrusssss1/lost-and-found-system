@@ -135,9 +135,9 @@ $apiKey = getenv("789654872826227") ?: "";
 $apiSecret = getenv("iKlrC1ZfIuussv5oLXPyBpiFhZ4") ?: "";
 
 if (
-    $cloudName === "" ||
-    $apiKey === "" ||
-    $apiSecret === ""
+    $cloudName === " di5zie7e" ||
+    $apiKey === "789654872826227" ||
+    $apiSecret === "iKlrC1ZfIuussv5oLXPyBpiFhZ4"
 ) {
     throw new Exception(
         "Cloudinary is not configured. Check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment variables."

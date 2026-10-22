@@ -798,3 +798,51 @@ body.staff-body textarea {
         grid-column: auto;
     }
 }
+
+/* =========================================
+   FIX REPORT IMAGES — STAFF & ADMIN
+   ========================================= */
+
+/* Keep report images from expanding the table */
+.staff-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.staff-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+/* Restrict the image column */
+.staff-table td img,
+.staff-table td .report-image,
+.staff-table td .item-image {
+    display: block;
+    width: 76px;
+    height: 76px;
+    max-width: 76px;
+    max-height: 76px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+/* Prevent image containers from growing */
+.staff-table td {
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+}
+
+/* Responsive images on smaller screens */
+@media (max-width: 800px) {
+    .staff-table td img,
+    .staff-table td .report-image,
+    .staff-table td .item-image {
+        width: 58px;
+        height: 58px;
+        max-width: 58px;
+        max-height: 58px;
+    }
+}

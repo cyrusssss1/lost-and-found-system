@@ -945,3 +945,40 @@ body.staff-body .staff-modal-box button {
     }
 }
 
+/* FIX: Keep report list photos small */
+.staff-main .staff-table img,
+.staff-main .report-image,
+.staff-main .report-photo,
+.staff-main .item-image,
+.staff-main .report-item img {
+    width: 64px !important;
+    height: 64px !important;
+    max-width: 64px !important;
+    max-height: 64px !important;
+    object-fit: cover !important;
+    display: block;
+    border-radius: 10px;
+}
+
+/* Prevent the report table from expanding */
+.staff-main .staff-table,
+.staff-main table {
+    width: 100%;
+    table-layout: auto;
+}
+
+/* Large image is allowed only inside report details */
+.staff-main .staff-modal-content img,
+.staff-main .staff-modal-box img {
+    width: 100%;
+    max-width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+}
+
+/* Keep the report list within the page */
+.staff-main {
+    min-width: 0;
+    overflow-x: hidden;
+}
+

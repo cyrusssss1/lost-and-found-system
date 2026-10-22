@@ -55,7 +55,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($_FILES["item_image"]["error"] !== UPLOAD_ERR_OK) {
 
-                $message = "Image upload failed. Please choose the image again.";
+                $uploadError = (int) $_FILES["item_image"]["error"];
+
+                switch ($uploadError) {
+                    case UPLOAD_ERR_INI_SIZE:
+                    case UPLOAD_ERR_FORM_SIZE:
+                        $message = "The image exceeds the server upload size limit. Try an image under 1MB or ask the server administrator to increase PHP upload limits.";
+                        break;
+
+                    case UPLOAD_ERR_PARTIAL:
+                        $message = "The image uploaded only partially. Please choose it again and retry.";
+                        break;
+
+                    case UPLOAD_ERR_NO_TMP_DIR:
+                        $message = "Server configuration error: the temporary upload folder is missing.";
+                        break;
+
+                    case UPLOAD_ERR_CANT_WRITE:
+                        $message = "Server error: PHP could not write the uploaded image to temporary storage.";
+                        break;
+
+                    case UPLOAD_ERR_EXTENSION:
+                        $message = "A PHP extension stopped the image upload.";
+                        break;
+
+                    default:
+                        $message = "Image upload failed. PHP upload error code: " . $uploadError;
+                        break;
+                }
+
                 $messageType = "error";
 
             } elseif ($_FILES["item_image"]["size"] > 5 * 1024 * 1024) {
@@ -105,49 +133,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                              * This allows Render to continue working.
                              */
 
-                            $cloudName = getenv("CLOUDINARY_CLOUD_NAME");
-                            $apiKey = getenv("CLOUDINARY_API_KEY");
-                            $apiSecret = getenv("CLOUDINARY_API_SECRET");
-
-
-                            /*
-                             * ==========================================
-                             * LOCALHOST SETTINGS
-                             * ==========================================
-                             *
-                             * PUT YOUR ACTUAL CLOUDINARY VALUES HERE.
-                             *
-                             * DO NOT SEND YOUR API SECRET TO ME.
-                             */
-
-                            if (empty($cloudName)) {
-                                $cloudName = "di5zie7e";
-                            }
-
-                            if (empty($apiKey)) {
-                                $apiKey = "789654872826227";
-                            }
-
-                            if (empty($apiSecret)) {
-                                $apiSecret = "iKlrC1ZfIuussv5oLXPyBpiFhZ4";
-                            }
-
-
-                            /*
-                             * Check credentials
-                             */
+                            $cloudName = getenv("di5zie7e") ?: "";
+                            $apiKey = getenv("789654872826227") ?: "";
+                            $apiSecret = getenv("iKlrC1ZfIuussv5oLXPyBpiFhZ4") ?: "";
 
                             if (
-                                $cloudName === "YOUR_CLOUD_NAME" ||
-                                $apiKey === "YOUR_API_KEY" ||
-                                $apiSecret === "YOUR_API_SECRET" ||
-                                empty($cloudName) ||
-                                empty($apiKey) ||
-                                empty($apiSecret)
+                                $cloudName === "" ||
+                                $apiKey === "" ||
+                                $apiSecret === ""
                             ) {
-
                                 throw new Exception(
-                                    "Cloudinary is not configured for localhost."
+                                    "Cloudinary is not configured. Check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment variables."
                                 );
                             }
 

@@ -1,4 +1,3 @@
-
 <?php
 ob_start();
 session_start();
@@ -119,31 +118,23 @@ if (function_exists("mb_substr")) {
 |--------------------------------------------------------------------------
 */
 $filter = [
-    "type" => $type
+    // Match the selected category without depending on letter casing.
+    "type" => new MongoDB\BSON\Regex("^" . preg_quote($type, "/") . "$", "i"),
+
+    // Keep the public search available across every student's reports.
+    // Rejected reports are hidden below in the display loop.
 ];
 
 if ($search !== "") {
-    $safeSearch = preg_quote($search, "/");
+    // MongoDB BSON Regex is supported directly by the PHP MongoDB library.
+    // Escape user input so characters such as [, *, (, and . are searched
+    // literally instead of being treated as regular-expression commands.
+    $searchRegex = new MongoDB\BSON\Regex(preg_quote($search, "/"), "i");
 
     $filter['$or'] = [
-        [
-            "item_name" => [
-                '$regex' => $safeSearch,
-                '$options' => 'i'
-            ]
-        ],
-        [
-            "description" => [
-                '$regex' => $safeSearch,
-                '$options' => 'i'
-            ]
-        ],
-        [
-            "location" => [
-                '$regex' => $safeSearch,
-                '$options' => 'i'
-            ]
-        ]
+        ["item_name" => $searchRegex],
+        ["description" => $searchRegex],
+        ["location" => $searchRegex],
     ];
 }
 
@@ -156,7 +147,8 @@ $items = $reports->find(
     $filter,
     [
         "sort" => [
-            "created_at" => -1
+            "created_at" => -1,
+            "_id" => -1
         ]
     ]
 );
